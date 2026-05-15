@@ -175,9 +175,9 @@ select:focus,input:focus{border-color:var(--b6);}
 
 /* ── VIEWER OVERLAY ── */
 .viewer-shield{} /* pointer events controlled per element */
-.viewer-shield .btn-p:not(.noa-edit):not(.pin-change-btn),.viewer-shield .btn-r:not(.noa-edit){display:none!important;}
-.viewer-shield select:not(#noa-status):not(#mn-status):not(#ord-fb):not(#ord-fs):not(.ord-filter):not(#cpa-period):not(#priv-period){pointer-events:none;opacity:.7;}
-.viewer-shield input:not(#ord-date-from):not(#ord-date-to):not(#ord-customer):not(.ord-filter-inp):not(#cpa-exp-name):not(#cpa-exp-amount){pointer-events:none;}
+.viewer-shield .btn-p:not(.noa-edit):not(.pin-change-btn):not(.cp-filter-btn),.viewer-shield .btn-r:not(.noa-edit):not(.cp-filter-btn){display:none!important;}
+.viewer-shield select:not(#noa-status):not(#mn-status):not(#ord-fb):not(#ord-fs):not(.ord-filter):not(#cpa-period):not(#priv-period):not(#cp-f):not(#cp-terms-f){pointer-events:none;opacity:.7;}
+.viewer-shield input:not(#ord-date-from):not(#ord-date-to):not(#ord-customer):not(.ord-filter-inp):not(#cpa-exp-name):not(#cpa-exp-amount):not(#cp-date-from):not(#cp-date-to){pointer-events:none;}
 
 .viewer-shield #sheet-mypin button,
 .viewer-shield #sheet-mypin input {
@@ -475,7 +475,7 @@ select:focus,input:focus{border-color:var(--b6);}
             </div>
             <div style="display:flex;flex-direction:column;gap:2px;">
               <label style="font-size:9px;color:transparent;">.</label>
-              <button onclick="clearCPFilters()" style="font-size:11px;padding:4px 10px;border-radius:6px;border:1px solid var(--bdr2);background:var(--sur);cursor:pointer;color:var(--r6);">✕ Clear</button>
+              <button onclick="clearCPFilters()" class="cp-filter-btn" style="font-size:11px;padding:4px 10px;border-radius:6px;border:1px solid var(--bdr2);background:var(--sur);cursor:pointer;color:var(--r6);">✕ Clear</button>
             </div>
           </div>
         </div>
