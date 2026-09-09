@@ -1774,6 +1774,7 @@ function saveData() {
   if(window.firebaseSave && window._firebaseReady){ 
     window._localSaveTime = Date.now();
     window._ignoreUntil = Date.now() + 5000; // block 5s
+    if(!window.firebaseSave){ console.log('Firebase not ready'); return; }
     window.firebaseSave(DB); 
   }
   if(typeof debugLog==='function') debugLog('💾 SAVED — ignoreCount='+window._ignoreCount+', _ts='+window._localSaveTime, '#0ff');
@@ -2389,7 +2390,7 @@ function renderOrders(){
     const allO = DB.orders;
     incKpi.innerHTML = [
       {lbl:'Zelle',        val:fmtF(allO.reduce((s,o)=>s+(o.zelle||0),0)),   c:'cg'},
-      {lbl:'Auth.net',     val:fmtF(allO.reduce((s,o)=>s+(o.authnet||0),0)), c:'cg'},
+      {lbl:'Auth.net',     val:fmtF(allO.reduce((s,o)=>s+(Number(o.authnet||0)>1000000?0:Number(o.authnet||0)),0)), c:'cg'},
       {lbl:'Wire/ACH',     val:fmtF(allO.reduce((s,o)=>s+(o.wire||0),0)),    c:'cg'},
       {lbl:'PayPal',       val:fmtF(allO.reduce((s,o)=>s+(o.paypal||0),0)),  c:'cg'},
       {lbl:'CashApp',      val:fmtF(allO.reduce((s,o)=>s+(o.cashapp||0),0)), c:'cg'},
