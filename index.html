@@ -1691,6 +1691,11 @@ function initFirebaseSync(){
   // Load from Firebase on start — smart merge preserves local data
   window.firebaseLoad(function(remoteDB){
     if(remoteDB){
+      // Filter out the "Test 1" / MC 20444344 test NOA so it is never restored
+      // from Firebase into the local DB, no matter how many times it syncs back.
+      if(remoteDB.noas){
+        remoteDB.noas = remoteDB.noas.filter(function(n){ return n.carrier !== 'Test 1' && n.mc !== '20444344'; });
+      }
       // Orders: add new ones only
       if(remoteDB.orders){
         var existingIds = new Set(DB.orders.map(function(o){ return o.id; }));
