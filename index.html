@@ -1627,6 +1627,12 @@ function mergeBrokers(remoteDB){
 }
 
 function smartMerge(remoteDB){
+  // Filter out test NOA
+  if(remoteDB.noas){
+    remoteDB.noas = remoteDB.noas.filter(function(n){
+      return n.carrier !== 'Test 1' && n.mc !== '20444344';
+    });
+  }
   // Merge orders: add new ones, update existing but prefer newer version
   if(remoteDB.orders){
     var localMap = {};
