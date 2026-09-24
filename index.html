@@ -3842,7 +3842,7 @@ function renderPrivate(){
 
   // ── P&L ───────────────────────────────────────────────────────────────────
   const totalExp = fixedTotal + varTotal;
-  const netProfit = revenue - totalExp - payGrand;
+  const netProfit = revenue - totalExp - (payGrand - payTotalH1);
   const margin    = revenue > 0 ? ((netProfit/revenue)*100).toFixed(1) : '—';
 
   document.getElementById('pl-summary').innerHTML=`
@@ -3852,7 +3852,7 @@ function renderPrivate(){
         ${plRow('Revenue (Broker Fees)', revenue, 'var(--g6)', false)}
         ${plRow('Fixed Expenses', fixedTotal, 'var(--r6)', true)}
         ${plRow('Variable Expenses', varTotal, 'var(--a6)', true)}
-        ${plRow('Total Payroll', payGrand, 'var(--p6)', true)}
+        ${plRow('Total Payroll', payGrand - payTotalH1, 'var(--p6)', true)}
         <div style="border-top:2px solid var(--bdr2);margin:4px 0;"></div>
         <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:${netProfit>=0?'var(--g0)':'var(--r0)'};border-radius:var(--r);">
           <div>
