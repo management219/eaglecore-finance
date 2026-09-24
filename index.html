@@ -3869,7 +3869,7 @@ function renderPrivate(){
     {lbl:'Revenue',        val:fmtF(revenue),    c:'cg'},
     {lbl:'Fixed Expenses', val:fmtF(fixedTotal), c:'cb'},
     {lbl:'Variable Exp.',  val:fmtF(varTotal),   c:'ca'},
-    {lbl:'Payroll',        val:fmtF(payGrand),   c:'cp'},
+    {lbl:'Payroll',        val:fmtF(payGrand - payTotalH1), c:'cp'},
     {lbl:'Net Profit',     val:(netProfit>=0?'+':'')+fmtF(netProfit), c:netProfit>=0?'cg':'cr'},
   ].map(k=>`<div class="kpi ${k.c}"><div class="lbl">${k.lbl}</div><div class="val">${k.val}</div></div>`).join('');
 
