@@ -579,6 +579,7 @@ body.sandy-mode .ni  { font-size: 12px !important; }
     <div class="ni active" data-s="orders" onclick="nav(this)"><span class="ni-dot"></span>Orders<span class="ni-badge" id="bdg-warn" style="display:none;">0</span></div>
     <div class="ni" data-s="carrier" onclick="nav(this)"><span class="ni-dot"></span>Carrier Payments<span class="ni-badge" id="bdg-carrier">0</span></div>
     <div class="ni" data-s="money" onclick="nav(this)"><span class="ni-dot"></span>Money Balance<span class="ni-badge am" id="bdg-money">0</span></div>
+    <div class="ni" id="nav-credit" data-s="credit" onclick="nav(this)"><span class="ni-dot"></span>Credit Advances<span class="ni-badge am" id="bdg-credit" style="display:none;">0</span></div>
     <div class="ni" data-s="noa" onclick="nav(this)"><span class="ni-dot"></span>Factoring NOAs</div>
     <div class="ni supervisor-only" id="nav-scorecard" data-s="scorecard" onclick="nav(this)"><span class="ni-dot"></span>Score Card</div>
     <div class="sb-sec" style="margin-top:6px;">Monthly Summary</div>
@@ -919,6 +920,22 @@ body.sandy-mode .ni  { font-size: 12px !important; }
           <button class="btn btn-p editor-only" onclick="openMoneyModal()">+ New Note</button>
         </div>
         <div id="mb-notes"></div>
+      </div>
+
+      <!-- CREDIT ADVANCES -->
+      <div id="sheet-credit" class="sheet">
+        <div class="kg" id="ca-kpis" style="grid-template-columns:repeat(4,1fr);"></div>
+        <div class="sec-bar" style="margin-bottom:10px;">
+          <div class="st st-a">Carrier Advances — Extended Client Credit</div>
+          <button class="btn btn-p ca-edit" id="ca-new-btn" onclick="openCreditModal()" style="display:none;">+ New Advance</button>
+        </div>
+        <div class="tw">
+          <table>
+            <thead><tr><th>Client (Owes Us)</th><th>Carrier Paid</th><th style="text-align:right;">Amount</th><th>Paid to Carrier</th><th>Expected Collection</th><th>Collected On</th><th style="text-align:right;">Days Out</th><th>Status</th><th>Notes</th><th class="ca-actions-th">Actions</th></tr></thead>
+            <tbody id="ca-body"></tbody>
+            <tfoot><tr id="ca-foot"></tr></tfoot>
+          </table>
+        </div>
       </div>
 
       <!-- FACTORING NOAs -->
@@ -1448,6 +1465,59 @@ body.sandy-mode .ni  { font-size: 12px !important; }
   </div>
 </div>
 
+<!-- CREDIT ADVANCE MODAL -->
+<div class="modal-overlay" id="ca-modal">
+  <div class="modal" style="max-width:620px;">
+    <div class="modal-title" id="ca-modal-title">New Credit Advance</div>
+    <div class="modal-sub">Carrier paid in advance — client pays us later (extended credit)</div>
+    <div style="background:#EEF4FB;border-radius:var(--rl);padding:14px;margin-bottom:12px;border:0.5px solid #B5D4F4;">
+      <div style="font-size:9px;font-weight:700;color:#0C447C;text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px;">Who &amp; How Much</div>
+      <div class="form-grid">
+        <div class="field"><label>Client (who owes us) *</label><input type="text" id="ca-client" list="ca-client-list" placeholder="e.g. ABC Brokerage"><datalist id="ca-client-list"></datalist></div>
+        <div class="field"><label>Carrier Paid *</label><input type="text" id="ca-carrier" placeholder="e.g. Swift Transport"></div>
+        <div class="field"><label>Amount Advanced ($) *</label><input type="text" inputmode="decimal" id="ca-amount" placeholder="$0.00"></div>
+        <div class="field"><label>Status</label>
+          <select id="ca-status" onchange="toggleCaCollected()">
+            <option value="pending">Pending</option>
+            <option value="collected">Collected</option>
+            <option value="overdue">Overdue</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div style="background:#EAF3DE;border-radius:var(--rl);padding:14px;margin-bottom:12px;border:0.5px solid #C0DD97;">
+      <div style="font-size:9px;font-weight:700;color:#27500A;text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px;">Dates</div>
+      <div class="form-grid">
+        <div class="field"><label>Date Paid to Carrier *</label><input type="date" id="ca-paid-date"></div>
+        <div class="field"><label>Expected Collection Date</label><input type="date" id="ca-expected-date"></div>
+        <div class="field" id="ca-collected-wrap" style="display:none;"><label>Collection Date *</label><input type="date" id="ca-collected-date"></div>
+      </div>
+    </div>
+    <div class="field"><label>Notes</label>
+      <input type="text" id="ca-notes" placeholder="e.g. Net 45 approved by Manuel, invoice #1234">
+    </div>
+    <div id="ca-err" style="color:var(--r6);font-size:11px;min-height:14px;margin-top:4px;"></div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('ca-modal')">Cancel</button>
+      <button class="btn btn-p ca-edit" onclick="saveCreditAdvance()">Save Advance</button>
+    </div>
+  </div>
+</div>
+
+<!-- CREDIT ADVANCE — MARK COLLECTED MODAL -->
+<div class="modal-overlay" id="ca-collect-modal">
+  <div class="modal" style="max-width:380px;">
+    <div class="modal-title">Mark as Collected</div>
+    <div class="modal-sub" id="ca-collect-sub"></div>
+    <div class="field"><label>Collection Date *</label><input type="date" id="ca-collect-date"></div>
+    <div id="ca-collect-err" style="color:var(--r6);font-size:11px;min-height:14px;margin-top:4px;"></div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('ca-collect-modal')">Cancel</button>
+      <button class="btn btn-p ca-edit" onclick="confirmCreditCollected()">Confirm Collected</button>
+    </div>
+  </div>
+</div>
+
 <!-- NOA MODAL -->
 <div class="modal-overlay" id="noa-modal">
   <div class="modal" style="max-width:620px;">
@@ -1592,6 +1662,7 @@ let DB = {
   orders: [],
   moneyNotes: [],
   noas: [],
+  creditAdvances: [],
   deductions: [],
   bankData: {},
   cpaReceivables: {},
@@ -1669,7 +1740,7 @@ function smartMerge(remoteDB){
 
   delete remoteDB._saveToken;
   // For all other fields: use remote if it has data
-  var fields = ['moneyNotes','noas','fixedExpenses','varExpenses','payroll','deductions','bankData','cpaReceivables','cpaFixedCosts','cpaManualExpenses','cpaDefaultExp','h1Rules'];
+  var fields = ['moneyNotes','noas','creditAdvances','fixedExpenses','varExpenses','payroll','deductions','bankData','cpaReceivables','cpaFixedCosts','cpaManualExpenses','cpaDefaultExp','h1Rules'];
   fields.forEach(function(f){
     if(remoteDB[f] && JSON.stringify(remoteDB[f]) !== '[]' && JSON.stringify(remoteDB[f]) !== '{}'){
       DB[f] = remoteDB[f];
@@ -1678,7 +1749,7 @@ function smartMerge(remoteDB){
 }
 
 function renderAllSheets(){
-  renderOrders(); renderCarrier(); renderMoney(); renderNOA();
+  renderOrders(); renderCarrier(); renderMoney(); renderNOA(); renderCreditAdvances();
   if(typeof renderMonthly==='function') renderMonthly(activeP);
   if(typeof renderPrivate==='function') renderPrivate();
   updateBadges();
@@ -1720,7 +1791,7 @@ function initFirebaseSync(){
       // silently wipe local data. This is what caused NOAs to disappear in the past:
       // `if(remoteDB.noas)` was true even for an empty array [], so a client that hadn't
       // finished loading real data could overwrite everyone's NOAs with nothing.
-      ['noas','moneyNotes','deductions'].forEach(function(f){
+      ['noas','creditAdvances','moneyNotes','deductions'].forEach(function(f){
         var local  = DB[f] || [];
         var remote = remoteDB[f];
         if(Array.isArray(remote) && remote.length >= local.length) DB[f] = remote;
@@ -1731,7 +1802,7 @@ function initFirebaseSync(){
       // listener caught up, silently pushing a deleted/off broker back to "active" for everyone.
       mergeBrokers(remoteDB);
       localStorage.setItem(DATA_KEY, JSON.stringify(DB));
-      if(ROLE!=='cpa'){ renderOrders(); renderCarrier(); renderMoney(); renderNOA(); }
+      if(ROLE!=='cpa'){ renderOrders(); renderCarrier(); renderMoney(); renderNOA(); renderCreditAdvances(); }
       if(ROLE==='cpa'||ROLE==='finance'||ROLE==='manuel'||ROLE==='sandy'){ if(typeof renderCPA==='function' && document.getElementById('sheet-cpa')?.classList.contains('active')) renderCPA(); }
       updateBadges();
       if(ROLE!=='cpa' && activeP) { if(typeof renderMonthly==='function') renderMonthly(activeP); if(typeof renderPrivate==='function') renderPrivate(); }
@@ -1761,6 +1832,7 @@ function initFirebaseSync(){
     else if(_activeId==='sheet-carrier') renderCarrier();
     else if(_activeId==='sheet-money')   renderMoney();
     else if(_activeId==='sheet-noa')     renderNOA();
+    else if(_activeId==='sheet-credit')  renderCreditAdvances();
     else if(_activeId==='sheet-scorecard') renderScoreCard();
     else if(_activeId==='sheet-monthly'){ if(typeof renderMonthly==='function') renderMonthly(activeP); }
     else if(_activeId==='sheet-private'){ if(typeof renderPrivate==='function') renderPrivate(); }
@@ -2155,6 +2227,7 @@ function getPeriodKey(dateStr){
   return PERIODS.find(p=>p.endM===mo)?.key||'';
 }
 function updateBadges(){
+  if(typeof updateCreditBadge==='function') updateCreditBadge();
   const warns=DB.orders.filter(o=>o.warn).length;
   const pending=DB.orders.filter(o=>!o.warn&&o.terms!=='Quick Pay').length;
   const moneyPending=DB.moneyNotes.filter(n=>n.status!=='resolved').length;
@@ -2167,7 +2240,7 @@ function updateBadges(){
 // ═══════════════════════════════════════════════════
 // NAVIGATION
 // ═══════════════════════════════════════════════════
-const TITLES={scorecard:['Score Card','Broker Performance 2026 — Supervisor View'],orders:['Orders','Eagle Core Logistics — Finance System'],carrier:['Carrier Payments','Auto-generated from Orders'],money:['Money Balance','Incomplete Payments — Manual Entry'],noa:['Factoring NOAs','Notice of Assignment — Manual Entry'],monthly:['Monthly Summary','Feb – Dec 2026'],private:['Private Finance','Payroll · Expenses · P&L — Owner & Finance Only'],config:['Brokers & Rules','System Configuration'],mypin:['Change My PIN','Update your access PIN'],cpa:['CPA Report','Eagle Core Logistics — Financial Summary'],production:['Production','Team Goal — $30,000 / Month']};
+const TITLES={scorecard:['Score Card','Broker Performance 2026 — Supervisor View'],orders:['Orders','Eagle Core Logistics — Finance System'],carrier:['Carrier Payments','Auto-generated from Orders'],money:['Money Balance','Incomplete Payments — Manual Entry'],noa:['Factoring NOAs','Notice of Assignment — Manual Entry'],credit:['Credit Advances','Carriers paid in advance — client pays later'],monthly:['Monthly Summary','Feb – Dec 2026'],private:['Private Finance','Payroll · Expenses · P&L — Owner & Finance Only'],config:['Brokers & Rules','System Configuration'],mypin:['Change My PIN','Update your access PIN'],cpa:['CPA Report','Eagle Core Logistics — Financial Summary'],production:['Production','Team Goal — $30,000 / Month']};
 function nav(el){
   document.querySelectorAll('.ni').forEach(n=>n.classList.remove('active'));
   el.classList.add('active');
@@ -2185,6 +2258,7 @@ function nav(el){
   else if(s==='carrier')renderCarrier();
   else if(s==='money')renderMoney();
   else if(s==='noa')renderNOA();
+  else if(s==='credit')renderCreditAdvances();
   else if(s==='monthly')renderMonthly(activeP);
   else if(s==='config')renderConfig();
   else if(s==='cpa')renderCPA();
@@ -2867,6 +2941,186 @@ function renderNOA(){
   }).join('');
 }
 function deleteNOA(i){if(ROLE!=='supervisor'&&ROLE!=='finance')return;showConfirm('Delete NOA','Delete this NOA? This cannot be undone.','Delete',function(){DB.noas.splice(i,1);saveDataAll();renderNOA();});}
+
+// ═══════════════════════════════════════════════════
+// CREDIT ADVANCES — carriers paid before the client pays us
+// View: all roles · Create/Edit/Delete: Billing (finance) only
+// Stored in DB.creditAdvances, synced to Firebase like NOAs
+// ═══════════════════════════════════════════════════
+function canEditCredit(){ return ROLE === 'finance'; }
+function caEsc(v){ return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+function caToday(){ var d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function caList(){ if(!Array.isArray(DB.creditAdvances)) DB.creditAdvances=[]; return DB.creditAdvances; }
+function caFind(id){ return caList().find(function(a){ return a.id===id; }); }
+// Effective status: a Pending advance past its expected collection date shows as Overdue
+function caStatus(a){
+  if(a.status==='collected') return 'collected';
+  if(a.status==='overdue') return 'overdue';
+  if(a.expectedDate && a.expectedDate < caToday()) return 'overdue';
+  return 'pending';
+}
+function caDaysOut(a){
+  if(!a.paidDate) return null;
+  var end = (a.status==='collected' && a.collectedDate) ? a.collectedDate : caToday();
+  var ms = new Date(end+'T00:00:00') - new Date(a.paidDate+'T00:00:00');
+  return Math.max(0, Math.round(ms/86400000));
+}
+function toggleCaCollected(){
+  var isC = document.getElementById('ca-status').value==='collected';
+  document.getElementById('ca-collected-wrap').style.display = isC ? '' : 'none';
+  var cd = document.getElementById('ca-collected-date');
+  if(isC && !cd.value) cd.value = caToday();
+}
+function openCreditModal(id){
+  if(!canEditCredit()) return;
+  var modal = document.getElementById('ca-modal');
+  var a = id ? caFind(id) : null;
+  document.getElementById('ca-client').value        = a ? (a.client||'') : '';
+  document.getElementById('ca-carrier').value       = a ? (a.carrier||'') : '';
+  document.getElementById('ca-amount').value        = a && a.amount ? a.amount : '';
+  document.getElementById('ca-status').value        = a ? (a.status||'pending') : 'pending';
+  document.getElementById('ca-paid-date').value     = a ? (a.paidDate||'') : caToday();
+  document.getElementById('ca-expected-date').value = a ? (a.expectedDate||'') : '';
+  document.getElementById('ca-collected-date').value= a ? (a.collectedDate||'') : '';
+  document.getElementById('ca-notes').value         = a ? (a.notes||'') : '';
+  document.getElementById('ca-err').textContent = '';
+  document.getElementById('ca-modal-title').textContent = a ? 'Edit Credit Advance' : 'New Credit Advance';
+  // Client suggestions from existing advances
+  var clients = Array.from(new Set(caList().map(function(x){ return (x.client||'').trim(); }).filter(Boolean))).sort();
+  document.getElementById('ca-client-list').innerHTML = clients.map(function(c){ return '<option value="'+caEsc(c)+'">'; }).join('');
+  modal.dataset.editId = a ? a.id : '';
+  toggleCaCollected();
+  modal.classList.add('show');
+}
+function saveCreditAdvance(){
+  if(!canEditCredit()) return;
+  var err = document.getElementById('ca-err');
+  var client  = document.getElementById('ca-client').value.trim();
+  var carrier = document.getElementById('ca-carrier').value.trim();
+  var amount  = parseFloat((document.getElementById('ca-amount').value||'').replace(/[$,\s]/g,''))||0;
+  var status  = document.getElementById('ca-status').value;
+  var paidDate= document.getElementById('ca-paid-date').value;
+  var expDate = document.getElementById('ca-expected-date').value;
+  var colDate = document.getElementById('ca-collected-date').value;
+  if(!client){ err.textContent='Client is required.'; return; }
+  if(!carrier){ err.textContent='Carrier is required.'; return; }
+  if(!(amount>0)){ err.textContent='Enter an amount greater than $0.'; return; }
+  if(!paidDate){ err.textContent='Date paid to carrier is required.'; return; }
+  if(status==='collected' && !colDate){ err.textContent='Enter the collection date.'; return; }
+  var modal = document.getElementById('ca-modal');
+  var editId = modal.dataset.editId || '';
+  var rec = {
+    id: editId || ('ca_'+Date.now()+'_'+Math.random().toString(36).substr(2,5)),
+    client: client, carrier: carrier, amount: amount,
+    paidDate: paidDate, expectedDate: expDate,
+    status: status, collectedDate: status==='collected' ? colDate : '',
+    notes: document.getElementById('ca-notes').value.trim(),
+    _ts: Date.now(), _by: window._currentUserName || ROLE
+  };
+  var list = caList();
+  if(editId){
+    var idx = list.findIndex(function(x){ return x.id===editId; });
+    if(idx>=0){ rec.createdAt = list[idx].createdAt || ''; list[idx] = rec; } else list.push(rec);
+  } else { rec.createdAt = new Date().toISOString(); list.push(rec); }
+  delete modal.dataset.editId;
+  saveDataAll(); closeModal('ca-modal'); renderCreditAdvances();
+}
+function openCreditCollect(id){
+  if(!canEditCredit()) return;
+  var a = caFind(id); if(!a) return;
+  var m = document.getElementById('ca-collect-modal');
+  m.dataset.id = id;
+  document.getElementById('ca-collect-sub').textContent = (a.client||'—')+' · '+fmtF(a.amount)+' (carrier: '+(a.carrier||'—')+')';
+  document.getElementById('ca-collect-date').value = caToday();
+  document.getElementById('ca-collect-err').textContent = '';
+  m.classList.add('show');
+}
+function confirmCreditCollected(){
+  if(!canEditCredit()) return;
+  var m = document.getElementById('ca-collect-modal');
+  var a = caFind(m.dataset.id); if(!a) return;
+  var d = document.getElementById('ca-collect-date').value;
+  if(!d){ document.getElementById('ca-collect-err').textContent='Collection date is required.'; return; }
+  a.status='collected'; a.collectedDate=d; a._ts=Date.now();
+  saveDataAll(); closeModal('ca-collect-modal'); renderCreditAdvances();
+}
+function deleteCreditAdvance(id){
+  if(!canEditCredit()) return;
+  var a = caFind(id); if(!a) return;
+  showConfirm('Delete Advance','Delete the '+fmtF(a.amount)+' advance for '+(a.client||'—')+'? This cannot be undone.','Delete',function(){
+    DB.creditAdvances = caList().filter(function(x){ return x.id!==id; });
+    saveDataAll(); renderCreditAdvances();
+  });
+}
+function updateCreditBadge(){
+  var b = document.getElementById('bdg-credit'); if(!b) return;
+  var n = caList().filter(function(a){ return caStatus(a)==='overdue'; }).length;
+  b.textContent = n; b.style.display = n ? '' : 'none';
+}
+function renderCreditAdvances(){
+  var kp = document.getElementById('ca-kpis'); if(!kp) return;
+  var canE = canEditCredit();
+  var list = caList();
+  var total=0, collected=0, pending=0, overdueAmt=0, clients={};
+  list.forEach(function(a){
+    var amt = Number(a.amount)||0, st = caStatus(a);
+    total += amt;
+    if(st==='collected') collected += amt;
+    else { pending += amt; if(a.client) clients[a.client.trim().toLowerCase()]=1; if(st==='overdue') overdueAmt += amt; }
+  });
+  var nClients = Object.keys(clients).length;
+  kp.innerHTML = [
+    {lbl:'Total Advanced',  val:fmtF(total),     sub:list.length+' advance'+(list.length===1?'':'s'), c:'cp'},
+    {lbl:'Total Collected', val:fmtF(collected), sub:list.filter(function(a){return caStatus(a)==='collected';}).length+' collected', c:'cg'},
+    {lbl:'Total Pending',   val:fmtF(pending),   sub:overdueAmt? fmtF(overdueAmt)+' overdue' : 'none overdue', c:overdueAmt?'cr':'ca'},
+    {lbl:'Clients with Credit', val:nClients,    sub:'with open balance', c:'cp'},
+  ].map(function(k){ return '<div class="kpi '+k.c+'"><div class="lbl">'+k.lbl+'</div><div class="val">'+k.val+'</div><div class="sub">'+k.sub+'</div></div>'; }).join('');
+
+  var nb = document.getElementById('ca-new-btn');
+  if(nb){ nb.style.display = canE ? '' : 'none'; nb.style.pointerEvents = canE ? 'auto' : 'none'; }
+  var th = document.querySelector('#sheet-credit .ca-actions-th');
+  if(th) th.style.display = canE ? '' : 'none';
+
+  var body = document.getElementById('ca-body'), foot = document.getElementById('ca-foot');
+  var cols = canE ? 10 : 9;
+  if(!list.length){
+    body.innerHTML = '<tr><td colspan="'+cols+'" style="text-align:center;padding:50px;color:var(--tx3);">No credit advances yet.'+(canE?' Click + New Advance to add one.':'')+'</td></tr>';
+    foot.innerHTML = '';
+    updateCreditBadge();
+    return;
+  }
+  // Newest payment to carrier first
+  var sorted = list.slice().sort(function(a,b){
+    var d = (b.paidDate||'').localeCompare(a.paidDate||'');
+    return d !== 0 ? d : (b._ts||0)-(a._ts||0);
+  });
+  var mono = 'font-family:var(--mono);font-size:11px;';
+  body.innerHTML = sorted.map(function(a){
+    var st = caStatus(a);
+    var sb = st==='collected' ? bdg('Collected','b-paid') : st==='overdue' ? bdg('Overdue','b-warn') : bdg('Pending','b-pend');
+    var days = caDaysOut(a);
+    var id = caEsc(a.id);
+    var acts = canE ? '<td style="white-space:nowrap;">'+
+      (st!=='collected' ? '<button class="btn" style="font-size:9px;padding:2px 7px;" onclick="openCreditCollect(\''+id+'\')">✓ Collected</button> ' : '')+
+      '<button class="btn" style="font-size:9px;padding:2px 7px;" onclick="openCreditModal(\''+id+'\')">Edit</button> '+
+      '<button class="btn btn-r" style="font-size:9px;padding:2px 7px;" onclick="deleteCreditAdvance(\''+id+'\')">Del</button></td>' : '';
+    return '<tr>'+
+      '<td style="font-weight:600;">'+caEsc(a.client||'—')+'</td>'+
+      '<td>'+caEsc(a.carrier||'—')+'</td>'+
+      '<td style="text-align:right;'+mono+'font-weight:700;">'+fmtF(a.amount)+'</td>'+
+      '<td style="'+mono+'">'+caEsc(a.paidDate||'—')+'</td>'+
+      '<td style="'+mono+(st==='overdue'?'color:var(--r6);font-weight:700;':'')+'">'+caEsc(a.expectedDate||'—')+'</td>'+
+      '<td style="'+mono+'">'+caEsc(a.collectedDate||'—')+'</td>'+
+      '<td style="text-align:right;'+mono+'">'+(days==null?'—':days)+'</td>'+
+      '<td>'+sb+'</td>'+
+      '<td style="font-size:11px;color:var(--tx2);max-width:220px;white-space:normal;">'+caEsc(a.notes||'')+'</td>'+
+      acts+'</tr>';
+  }).join('');
+  foot.innerHTML = '<td colspan="2" style="font-weight:700;">TOTAL ('+list.length+')</td>'+
+    '<td style="text-align:right;'+mono+'font-weight:700;">'+fmtF(total)+'</td>'+
+    '<td colspan="'+(cols-3)+'" style="font-size:11px;color:var(--tx3);">Collected '+fmtF(collected)+' · Pending '+fmtF(pending)+'</td>';
+  updateCreditBadge();
+}
 
 // ═══════════════════════════════════════════════════
 // MONTHLY SUMMARY
@@ -3959,6 +4213,7 @@ function buildBackupBlob(){
       orders:     DB.orders.length,
       moneyNotes: DB.moneyNotes.length,
       noas:       DB.noas.length,
+      creditAdvances: (DB.creditAdvances||[]).length,
       brokers:    DB.brokers.length
     },
     data: DB
@@ -4231,7 +4486,7 @@ function confirmClearAllData(){
   }
   closeModal('clear-data-modal');
   if(!confirm('FINAL WARNING\n\nYou are about to delete ALL data permanently.\n\nAre you absolutely sure?')) return;
-  DB.orders=[]; DB.moneyNotes=[]; DB.noas=[]; DB.payPaid={};
+  DB.orders=[]; DB.moneyNotes=[]; DB.noas=[]; DB.creditAdvances=[]; DB.payPaid={};
   DB.fixedExpenses=[]; DB.varExpenses=[]; DB.payroll=[]; DB.deductions=[];
   saveData(); renderOrders(); updateBadges();
   alert('All data has been cleared.');
