@@ -2186,7 +2186,7 @@ function computePayrollRows(periodKey){
     else { grossPay = calcComm(bFee, br.tier); }
     const h1S = new Date(pDef.year,pDef.startM-1,pDef.startD);
     const h1C = new Date(pDef.year,pDef.endM-1,10,23,59,59);
-    const h1F = pOrders.filter(o=>o.bId===br.id).filter(o=>{const d=new Date(o.date+'T12:00:00');return d>=h1S&&d<=h1C;}).reduce((s,o)=>s+(Number(o.bfee)||0),0);
+    const h1F = DB.orders.filter(o=>o.bId===br.id&&getPeriodKey(o.date)===periodKey).filter(o=>!o.onHold).filter(o=>{const d=new Date(o.date+'T12:00:00');return d>=h1S&&d<=h1C;}).reduce((s,o)=>s+(Number(o.bfee)||0),0);
     const h1     = calcH1(h1F, br.tier);
     const eclu   = br.eclu ? 100 : 0;
     const bDeductions = (DB.deductions||[]).filter(d=>d.period===periodKey&&d.bId===br.id);
@@ -3278,7 +3278,7 @@ function renderMonthly(key){
       <div class="kpi cg"><div class="lbl">Total Commissions</div><div class="val">${fmtF(totalComm)}</div></div>
       <div class="kpi ca"><div class="lbl">Total H1 Payroll</div><div class="val">${fmtF(totalH1)}</div><div class="sub">Day 26 to 10 · ${pDef.endM}/10/${pDef.year}</div></div>
       ${(()=>{const rookieTotal=activeBrokers.filter(b=>b.tier==='rookie').reduce((s,br)=>{const f=periodOrders.filter(o=>o.bId===br.id).reduce((a,o)=>a+(Number(o.bfee)||0),0);return s+f*0.05;},0);return rookieTotal>0?`<div class="kpi" style="background:#fff3cd;"><div class="lbl" style="color:#856404;">Mariano Override (Rookies 5%)</div><div class="val" style="color:#856404;">${fmtF(rookieTotal)}</div></div>`:''})()}
-      <div class="kpi cp"><div class="lbl">Brokers with H1</div><div class="val">${activeBrokers.filter(br=>{const h1f=DB.orders.filter(o=>o.bId===br.id&&getPeriodKey(o.date)===key).filter(o=>{const d=new Date(o.date+'T12:00:00');return d>=pStart&&d<=h1Cut;}).reduce((s,o)=>s+(Number(o.bfee)||0),0);return calcH1(h1f,br.tier,br)>0;}).length}</div></div>
+      <div class="kpi cp"><div class="lbl">Brokers with H1</div><div class="val">${activeBrokers.filter(br=>{const h1f=DB.orders.filter(o=>o.bId===br.id&&getPeriodKey(o.date)===key).filter(o=>!o.onHold).filter(o=>{const d=new Date(o.date+'T12:00:00');return d>=pStart&&d<=h1Cut;}).reduce((s,o)=>s+(Number(o.bfee)||0),0);return calcH1(h1f,br.tier,br)>0;}).length}</div></div>
     </div>
 
     <div style="display:grid;grid-template-columns:minmax(0,260px) minmax(0,1fr);gap:14px;align-items:start;">
@@ -3736,7 +3736,7 @@ function renderPrivate(){
       const pDf = PERIODS.find(p=>p.key===periodKey);
       const h1S = new Date(pDf.year,pDf.startM-1,pDf.startD);
       const h1C = new Date(pDf.year,pDf.endM-1,10,23,59,59);
-      const h1F = pOrders.filter(o=>o.bId===br.id).filter(o=>{const d=new Date(o.date+'T12:00:00');return d>=h1S&&d<=h1C;}).reduce((s,o)=>s+(Number(o.bfee)||0),0);
+      const h1F = pOrders.filter(o=>o.bId===br.id).filter(o=>!o.onHold).filter(o=>{const d=new Date(o.date+'T12:00:00');return d>=h1S&&d<=h1C;}).reduce((s,o)=>s+(Number(o.bfee)||0),0);
       h1    = calcH1(h1F, br.tier, br);
       total = base + comm; // H1 is advance, not added to total
     }
@@ -5498,12 +5498,17 @@ function renderScoreCard(){
 
   // Group by period
   const byMonth = {};
-  MONTHS.forEach(m=>{ byMonth[m.key]={orders:[],fee:0,comm:0,h1:0}; });
+  MONTHS.forEach(m=>{ byMonth[m.key]={orders:[],fee:0,h1Fee:0,comm:0,h1:0}; });
   bOrders.forEach(o=>{
     const pk = getPeriodKey(o.date);
     if(byMonth[pk]){
       byMonth[pk].orders.push(o);
       byMonth[pk].fee += Number(o.bfee)||0;
+      const pDef  = PERIODS.find(p=>p.key===pk);
+      const pStart= new Date(pDef.year,pDef.startM-1,pDef.startD);
+      const h1Cut = new Date(pDef.year,pDef.endM-1,10,23,59,59);
+      const d     = new Date(o.date+'T12:00:00');
+      if(d>=pStart&&d<=h1Cut) byMonth[pk].h1Fee += Number(o.bfee)||0;
     }
   });
 
@@ -5511,7 +5516,7 @@ function renderScoreCard(){
   MONTHS.forEach(m=>{
     const fee = byMonth[m.key].fee;
     byMonth[m.key].comm = calcComm(fee, broker.tier);
-    byMonth[m.key].h1   = calcH1(fee, broker.tier, broker);
+    byMonth[m.key].h1   = calcH1(byMonth[m.key].h1Fee, broker.tier, broker);
   });
 
   // YTD totals
