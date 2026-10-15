@@ -1344,6 +1344,12 @@ body.sandy-mode .ni  { font-size: 12px !important; }
           <div id="cod-notice" style="display:none;margin-top:6px;padding:6px 10px;background:var(--b0);border-radius:var(--r);font-size:11px;color:var(--b9);border:0.5px solid var(--b1);">
             ◉ COD — Enter the COD amount in Incoming Money above. This order will show an orange indicator.
           </div>
+          <!-- SPLIT PAYMENTS — up to 3 additional carrier payment methods -->
+          <div id="split-pay-wrap" style="margin-top:10px;">
+            <div id="split-pay-rows"></div>
+            <button type="button" class="btn" id="split-pay-add" onclick="addSplitRow()" style="font-size:10px;padding:3px 9px;margin-top:6px;">+ Add Payment Method</button>
+            <span id="split-pay-hint" style="font-size:10px;color:var(--tx3);margin-left:6px;">Split carrier pay across up to 3 extra methods</span>
+          </div>
         </div>
       </div>
     </div>
@@ -2218,6 +2224,89 @@ function getPayMethod(o){
   if(o.dep>0)    return 'Deposit';
   return '—';
 }
+// ═══════════════════════════════════════════════════
+// SPLIT PAYMENTS — extra carrier payment methods per order
+// o.splitPayments = [{method, amount}]  (max 3, in addition to terms/cpay)
+// ═══════════════════════════════════════════════════
+const MAX_SPLITS = 3;
+function getSplits(o){
+  const s = o && o.splitPayments;
+  // Firebase may return arrays as objects — normalize
+  const arr = Array.isArray(s) ? s : (s && typeof s==='object' ? Object.values(s) : []);
+  return arr.filter(x=>x && x.method && Number(x.amount)>0);
+}
+function matchesTerms(o,t){ return o.terms===t || getSplits(o).some(x=>x.method===t); }
+function hasSplits(o){ return getSplits(o).length>0; }
+function primaryNetCp(o){
+  const cp = Number(o.cpay)||0;
+  return o.terms==='Wire ($35.00)' ? cp-(Number(o.wfee)||35) : cp;
+}
+function splitsTotal(o){ return getSplits(o).reduce((s,x)=>s+(Number(x.amount)||0),0); }
+function splitsCOD(o){ return getSplits(o).filter(x=>x.method==='COD').reduce((s,x)=>s+(Number(x.amount)||0),0); }
+// Total carrier pay = principal cpay (net of wire fee) + all splits
+function totalCarrierPay(o){ return primaryNetCp(o) + splitsTotal(o); }
+// COD total = order COD amount + only the splits whose method is COD
+function totalCOD(o){ return (Number(o.cod)||0) + splitsCOD(o); }
+// What we actually owe/pay carriers (excludes COD — carrier collects it directly):
+// principal net cpay unless terms is COD, plus every split that is not COD
+function payableCarrierPay(o){
+  return (o.terms==='COD' ? 0 : primaryNetCp(o)) + (splitsTotal(o) - splitsCOD(o));
+}
+function payMethodShort(m){ return m==='Wire ($35.00)' ? 'Wire' : (m||'—'); }
+// "COD $300 / Super Pay $350"
+function payBreakdownText(o){
+  const parts = [payMethodShort(o.terms)+' '+fmtF(primaryNetCp(o))];
+  getSplits(o).forEach(x=>parts.push(payMethodShort(x.method)+' '+fmtF(Number(x.amount)||0)));
+  return parts.join(' / ');
+}
+function termsBadgeCls(t){
+  t=t||'';
+  return t.includes('Wire')||t==='ACH'?'b-info':t==='COD'?'b-warn':t==='Factoring'?'b-pur':'b-teal';
+}
+// Primary terms badge + 'Split' badge when the order has splits
+function termsBadgeHtml(o){
+  const main = bdg(o.terms||'—', termsBadgeCls(o.terms));
+  if(!hasSplits(o)) return main;
+  return main+' <span class="badge b-pur" style="font-size:9px;" title="'+payBreakdownText(o).replace(/"/g,'&quot;')+'">Split</span>';
+}
+// ── Form UI ──
+function splitMethodOptions(sel){
+  const opts = Array.from(document.getElementById('f-terms')?.options||[]);
+  return opts.map(op=>'<option value="'+op.value.replace(/"/g,'&quot;')+'"'+(op.value===sel?' selected':'')+'>'+op.textContent+'</option>').join('');
+}
+function addSplitRow(method, amount){
+  const wrap = document.getElementById('split-pay-rows');
+  if(!wrap) return;
+  if(wrap.children.length >= MAX_SPLITS) return;
+  const row = document.createElement('div');
+  row.className = 'split-row';
+  row.style.cssText = 'display:flex;gap:6px;align-items:center;margin-top:6px;';
+  row.innerHTML =
+    '<select class="split-method" style="flex:1;min-width:0;" onchange="updateMatchIndicator()">'+splitMethodOptions(method||'')+'</select>'+
+    '<input type="text" inputmode="decimal" class="split-amount" placeholder="$0.00" value="'+(amount?amount:'')+'" oninput="updateMatchIndicator()" style="width:110px;">'+
+    '<button type="button" class="btn btn-r" style="font-size:9px;padding:2px 7px;" onclick="this.parentElement.remove();refreshSplitUI();updateMatchIndicator();" title="Remove">✕</button>';
+  wrap.appendChild(row);
+  refreshSplitUI();
+}
+function refreshSplitUI(){
+  const n = document.getElementById('split-pay-rows')?.children.length || 0;
+  const btn = document.getElementById('split-pay-add');
+  if(btn) btn.style.display = n >= MAX_SPLITS ? 'none' : '';
+  const hint = document.getElementById('split-pay-hint');
+  if(hint) hint.textContent = n >= MAX_SPLITS ? 'Maximum of 3 additional methods' : 'Split carrier pay across up to 3 extra methods';
+}
+function resetSplitRows(splits){
+  const wrap = document.getElementById('split-pay-rows');
+  if(wrap) wrap.innerHTML = '';
+  (splits||[]).slice(0,MAX_SPLITS).forEach(x=>addSplitRow(x.method, x.amount));
+  refreshSplitUI();
+}
+function collectSplits(){
+  return Array.from(document.querySelectorAll('#split-pay-rows .split-row')).map(r=>({
+    method: r.querySelector('.split-method').value,
+    amount: Math.round((parseFloat((r.querySelector('.split-amount').value||'').replace(/[$,]/g,''))||0)*100)/100
+  })).filter(x=>x.method && x.amount>0).slice(0,MAX_SPLITS);
+}
 function getPeriodKey(dateStr){
   if(!dateStr)return'';
   const d=new Date(dateStr+'T12:00:00');
@@ -2282,6 +2371,7 @@ function openOrderModal(idx=-1){
   const bs=document.getElementById('f-broker');
   bs.innerHTML='<option value="">Select broker</option>';
   DB.brokers.filter(b=>b.active).forEach(b=>{const o=document.createElement('option');o.value=b.id;o.textContent=b.name;bs.appendChild(o);});
+  resetSplitRows(idx>=0 ? getSplits(DB.orders[idx]) : []);
   if(idx>=0){
     const o=DB.orders[idx];
     document.getElementById('f-date').value=o.date||'';
@@ -2351,6 +2441,7 @@ function saveOrder(){
     bol:      document.getElementById('f-bol').value,
     notes:    document.getElementById('f-notes').value.trim(),
     onHold:   document.getElementById('f-onhold')?.checked || false,
+    splitPayments: collectSplits(),
   };
   // Auto-calculate warning flag
   o.flagStatus = calcFlag(o);
@@ -2358,7 +2449,7 @@ function saveOrder(){
 
   // If mismatch — show warning banner but still allow save
   if(o.flagStatus === 'red'){
-    const t    = o.tariff, cp = o.cpay, bf = o.bfee;
+    const t    = o.tariff, cp = o.cpay + splitsTotal(o), bf = o.bfee;
     const proc2= o.proc||0, svc2= o.svc||0, wf2= o.wfee||0;
     const sum  = cp + bf + proc2 + svc2 + wf2;
     const diff = Math.abs(t - sum);
@@ -2417,7 +2508,7 @@ function renderOrders(){
   } else {
     const rows=data.map((o,i)=>{
       const realIdx=DB.orders.findIndex(x=>x===o);
-      T.tariff+=o.tariff;T.cpay+=o.cpay;T.cod+=Number(o.cod)||0;T.proc+=Number(o.proc)||0;T.wf+=Number(o.wfee)||0;T.bf+=Number(o.bfee)||0;
+      T.tariff+=o.tariff;T.cpay+=totalCarrierPay(o);T.cod+=totalCOD(o);T.proc+=Number(o.proc)||0;T.wf+=Number(o.wfee)||0;T.bf+=Number(o.bfee)||0;
       const pm=v=>v>0?`<td class="tg">${fmtF(v)}</td>`:`<td class="dim">—</td>`;
       const br=getBroker(o.bId);
       const tierBdg=br?bdg(getTier(br.tier).label,getTier(br.tier).badgeCls):'';
@@ -2434,18 +2525,18 @@ function renderOrders(){
         <td style="font-size:11px;">${getBrokerName(o.bId)}</td>
         <td>${o.carrier||'—'}</td>
         <td style="font-size:10px;color:var(--tx2);">${o.factoring||'—'}</td>
-        <td>${bdg(o.terms,o.terms.includes('Wire')||o.terms==='ACH'?'b-info':o.terms==='COD'?'b-warn':o.terms==='Factoring'?'b-pur':'b-teal')}</td>
+        <td>${termsBadgeHtml(o)}</td>
         <td class="dim" style="font-size:10px;">${o.id1||'—'}</td>
         <td class="dim" style="font-size:10px;">${o.id2||'—'}</td>
         <td class="dim" style="font-size:10px;">${o.id3||'—'}</td>
         <td class="tb">${fmtF(o.tariff)}</td>
         <td class="mn">${(()=>{
-          const net = o.terms==='Wire ($35.00)' ? o.cpay-(o.wfee||35) : o.cpay;
-          const tip = o.terms==='Wire ($35.00)' ? ' title="Gross $'+o.cpay.toFixed(2)+' − Wire $'+(o.wfee||35)+'"' : '';
+          const net = totalCarrierPay(o);
+          const tip = hasSplits(o) ? ' title="'+payBreakdownText(o)+'"' : o.terms==='Wire ($35.00)' ? ' title="Gross $'+o.cpay.toFixed(2)+' − Wire $'+(o.wfee||35)+'"' : '';
           const col = o.terms==='Wire ($35.00)' ? 'color:var(--a6);' : '';
           return '<span style="font-family:var(--mono);'+col+'"'+tip+'>'+fmtF(net)+'</span>';
         })()}</td>
-        <td class="${o.cod?'ta':'dim'}">${o.cod?fmtF(o.cod):'—'}</td>
+        <td class="${totalCOD(o)?'ta':'dim'}">${totalCOD(o)?fmtF(totalCOD(o)):'—'}</td>
         <td class="${o.wfee?'tr':'dim'}">${o.wfee?fmtF(o.wfee):'—'}</td>
         <td class="tb">${fmtF(o.bfee)}</td>
         <td><span class="badge b-gray" style="font-size:9px;">${o.type||'—'}</span></td>
@@ -2487,8 +2578,8 @@ function renderOrders(){
     {lbl:'Total Orders',val:DB.orders.length,sub:'all periods',c:'cb'},
     {lbl:'Total Tariff',val:fmtF(DB.orders.reduce((s,o)=>s+o.tariff,0)),c:'cb'},
     {lbl:'Broker Fee',val:fmtF(DB.orders.reduce((s,o)=>s+(Number(o.bfee)||0),0)),c:'cb'},
-    {lbl:'Carrier Pay',val:fmtF(DB.orders.reduce((s,o)=>s+(o.terms==='Wire ($35.00)'?(o.cpay-(o.wfee||35)):o.cpay),0)),c:'cg'},
-    {lbl:'COD',val:fmtF(DB.orders.reduce((s,o)=>s+o.cod,0)),c:'cr'},
+    {lbl:'Carrier Pay',val:fmtF(DB.orders.reduce((s,o)=>s+totalCarrierPay(o),0)),c:'cg',sub:DB.orders.filter(hasSplits).length?DB.orders.filter(hasSplits).length+' with splits':''},
+    {lbl:'COD',val:fmtF(DB.orders.reduce((s,o)=>s+totalCOD(o),0)),c:'cr'},
   ].map(k=>`<div class="kpi ${k.c}"><div class="lbl">${k.lbl}</div><div class="val">${k.val}</div>${k.sub?`<div class="sub">${k.sub}</div>`:''}</div>`).join('');
 }
 
@@ -2510,10 +2601,10 @@ function renderCarrier(){
   DB.orders.filter(o=>{
     if(dateFrom && o.date && o.date < dateFrom) return false;
     if(dateTo   && o.date && o.date > dateTo)   return false;
-    if(termsFlt && o.terms !== termsFlt)         return false;
+    if(termsFlt && !matchesTerms(o,termsFlt))    return false;
     return true;
   }).forEach(o=>{
-    const netCp  = o.terms==='Wire ($35.00)' ? ((Number(o.cpay)||0)-(Number(o.wfee)||35)) : (Number(o.cpay)||0);
+    const netCp  = totalCarrierPay(o);
     kpiTot += netCp;
     if(o.cpStatus==='Paid' || o.cpStatus==='COD Completed'){
       kpiPaid += netCp;
@@ -2536,7 +2627,7 @@ function renderCarrier(){
     if(!o.cpStatus) return false; // no status = not explicitly pending
     if(dateFrom && o.date && o.date < dateFrom) return false;
     if(dateTo   && o.date && o.date > dateTo)   return false;
-    if(termsFlt && o.terms !== termsFlt) return false;
+    if(termsFlt && !matchesTerms(o,termsFlt)) return false;
     return o.cpStatus==='Pending' || o.cpStatus==='Overdue';
   }).length;
 
@@ -2547,11 +2638,11 @@ function renderCarrier(){
   } else {
     const rows = DB.orders.map((o, ri) => {
       const status  = o.cpStatus || (o.terms==='COD' ? 'COD Completed' : '');
-      const netCp   = o.terms==='Wire ($35.00)' ? (o.cpay-(o.wfee||35)) : o.cpay;
+      const netCp   = totalCarrierPay(o);
       if(flt && status !== flt) return '';
       if(dateFrom && o.date && o.date < dateFrom) return '';
       if(dateTo   && o.date && o.date > dateTo)   return '';
-      if(termsFlt && o.terms !== termsFlt)         return '';
+      if(termsFlt && !matchesTerms(o,termsFlt))    return '';
       if(carrierSearch && !(o.carrier||'').toLowerCase().includes(carrierSearch)) return '';
 
       const method   = getPayMethod(o);
@@ -2562,6 +2653,11 @@ function renderCarrier(){
       const mc = method.startsWith('Wire')?'b-warn':method==='ACH'?'b-info':method==='Zelle'?'b-teal':method==='CashApp'?'b-teal':method==='Check'?'b-paid':method==='PayPal'?'b-pur':method==='COD'?'b-warn':method==='Factoring'?'b-pur':method==='Super Pay'?'b-paid':'b-pend';
 
       const cpDisplay=(()=>{
+        if(hasSplits(o)){
+          // All payment methods: "COD $300 / Super Pay $350"
+          return '<span style="font-family:var(--mono);font-size:10px;font-weight:700;white-space:nowrap;" title="Total '+fmtF(netCp)+'">'+payBreakdownText(o)+'</span>'
+            +'<div style="font-size:9px;color:var(--tx3);">Total '+fmtF(netCp)+'</div>';
+        }
         if(o.terms==='COD') return '<span style="font-size:10px;color:var(--a6);">COD</span>';
         const isW=o.terms==='Wire ($35.00)', fee=Number(o.wfee)||35, net=isW?(Number(o.cpay)-fee):Number(o.cpay);
         const tip=isW?'title="$'+Number(o.cpay).toFixed(2)+' − Wire $'+fee.toFixed(2)+'"':'';
@@ -2603,7 +2699,7 @@ function renderCarrier(){
         <td class="mn">${o.date||'—'}</td>
         <td>${cpDisplay}</td>
         <td style="font-size:11px;color:var(--tx2);">${fact}</td>
-        <td>${bdg(o.terms||'—',(o.terms||'').includes('Wire')||(o.terms||'')==='ACH'?'b-info':(o.terms||'')==='COD'?'b-warn':'b-teal')}</td>
+        <td>${termsBadgeHtml(o)}</td>
         <td>${statusSel}</td>
         <td>${paidDateFld}</td>
         <td>${dmgSel}</td>
@@ -2618,22 +2714,20 @@ function renderCarrier(){
   // ── KPIs ──────────────────────────────────────────────────────────────────
   const dmgResolved = DB.orders.filter(o=>o.cpDamage==='resolved').length;
   const dmgActive   = DB.orders.filter(o=>o.cpDamage==='yes'||o.cpDamage==='hold').length;
-  const codTotal    = DB.orders.filter(o=>o.cod>0).reduce((s,o)=>s+o.cod,0);
+  const codTotal    = DB.orders.reduce((s,o)=>s+totalCOD(o),0); // o.cod + COD splits only
 
   // ── Method totals panel ────────────────────────────────────────────────
   const filteredOrders = DB.orders.filter(o=>{
     if(dateFrom && o.date && o.date < dateFrom) return false;
     if(dateTo   && o.date && o.date > dateTo)   return false;
-    if(termsFlt && o.terms !== termsFlt)         return false;
+    if(termsFlt && !matchesTerms(o,termsFlt))    return false;
     return true;
   });
   const methodTotals = {};
+  const addMT = (m,amt)=>{ if(!methodTotals[m]) methodTotals[m]={count:0,total:0}; methodTotals[m].count++; methodTotals[m].total+=amt; };
   filteredOrders.forEach(o=>{
-    const m = o.terms || 'Other';
-    const net = o.terms==='Wire ($35.00)' ? (o.cpay-(o.wfee||35)) : o.cpay;
-    if(!methodTotals[m]) methodTotals[m]={count:0,total:0};
-    methodTotals[m].count++;
-    methodTotals[m].total+=net;
+    addMT(o.terms || 'Other', primaryNetCp(o));
+    getSplits(o).forEach(x=>addMT(x.method, Number(x.amount)||0)); // each split counted under its own method
   });
   const mtPanel = document.getElementById('cp-method-totals');
   if(mtPanel && (dateFrom||dateTo||termsFlt)){
@@ -2653,7 +2747,7 @@ function renderCarrier(){
     {lbl:'Paid',           val:fmtF(kpiPaid),         c:'cg', sub:paidWithDates.length+' orders'},
     {lbl:'Pending',        val:fmtF(kpiPend),         c:'cr', sub:pendCount+' orders'},
     {lbl:'Avg Days to Pay',val:avgDays,                c:'ca', sub:'based on paid orders'},
-    {lbl:'COD',    val:fmtF(codTotal),         c:'ca', sub:DB.orders.filter(o=>o.cod>0).length+' COD orders'},
+    {lbl:'COD',    val:fmtF(codTotal),         c:'ca', sub:DB.orders.filter(o=>totalCOD(o)>0).length+' COD orders'},
     {lbl:'Damage Active',  val:dmgActive+' orders',    c:'cr'},
     {lbl:'Damage Resolved',val:dmgResolved+' orders',  c:'cg'},
   ].map(k=>`<div class="kpi ${k.c}"><div class="lbl">${k.lbl}</div><div class="val">${k.val}</div>${k.sub?'<div class="sub">'+k.sub+'</div>':''}</div>`).join('');
@@ -3166,8 +3260,8 @@ function renderMonthly(key){
   const pct=Math.min(100,Math.round((elapsed/bizDays)*100));
   const totalBFee=periodOrders.reduce((s,o)=>s+(Number(o.bfee)||0),0);
   const totalTariff=periodOrders.reduce((s,o)=>s+o.tariff,0);
-  const totalCpay=periodOrders.reduce((s,o)=>s+o.cpay,0);
-  const totalCod=periodOrders.reduce((s,o)=>s+o.cod,0);
+  const totalCpay=periodOrders.reduce((s,o)=>s+(Number(o.cpay)||0)+splitsTotal(o),0);
+  const totalCod=periodOrders.reduce((s,o)=>s+totalCOD(o),0);
   const totalProc=periodOrders.reduce((s,o)=>s+o.proc,0);
   const proj=elapsed>0?(totalBFee/elapsed)*bizDays:0;
 
@@ -3442,7 +3536,7 @@ document.querySelectorAll('.modal-overlay').forEach(m=>{m.addEventListener('clic
 
 function calcFlag(o){
   const t    = Number(o.tariff)||0;
-  const cp   = Number(o.cpay)||0;
+  const cp   = (Number(o.cpay)||0) + splitsTotal(o); // principal + split payments
   const bf   = Number(o.bfee)||0;
   const cod  = Number(o.cod)||0;
   const proc = Number(o.proc)||0;
@@ -3470,7 +3564,9 @@ function flagIcon(status){
 function updateMatchIndicator(){
   const parseV=id=>{const el=document.getElementById(id);return parseFloat((el?.value||'').replace(/[$,]/g,''))||0;};
   const t=parseV('f-tariff');
-  const cp=parseV('f-cpay');
+  const cpMain=parseV('f-cpay');
+  const splitSum=collectSplits().reduce((s,x)=>s+x.amount,0);
+  const cp=cpMain+splitSum;
   const bf=parseV('f-bfee');
   const cod=parseV('f-cod');
   const proc=parseV('f-proc');
@@ -3489,7 +3585,7 @@ function updateMatchIndicator(){
     ind.textContent='◉ COD order — carrier collects $'+(cod||t).toFixed(2)+' on delivery. No mismatch error applied.';
   } else if(diff<=0.5){
     ind.style.background='var(--g0)';ind.style.color='var(--g8)';
-    ind.textContent='✓ Match — Carrier Pay $'+cp.toFixed(2)+' + Broker Fee $'+bf.toFixed(2)+(proc>0?' + Proc $'+proc.toFixed(2):'')+(svc>0?' + Svc $'+svc.toFixed(2):'')+' = $'+sum.toFixed(2);
+    ind.textContent='✓ Match — Carrier Pay $'+cp.toFixed(2)+(splitSum>0?' (incl. splits $'+splitSum.toFixed(2)+')':'')+' + Broker Fee $'+bf.toFixed(2)+(proc>0?' + Proc $'+proc.toFixed(2):'')+(svc>0?' + Svc $'+svc.toFixed(2):'')+' = $'+sum.toFixed(2);
   } else {
     ind.style.background='var(--r0)';ind.style.color='var(--r8)';
     ind.textContent='! Mismatch — Total Tariff $'+t.toFixed(2)+' ≠ $'+sum.toFixed(2)+' (diff: $'+diff.toFixed(2)+')';
@@ -4730,8 +4826,8 @@ function renderCPA(){
   // ── Revenue ───────────────────────────────────────────────────────────────
   const revenue = pOrders.reduce((s,o)=>s+(Number(o.bfee)||0),0);
   const grossRevenue = pOrders.reduce((s,o)=>s+(Number(o.tariff)||0),0);
-  const carrierCostPaid = pOrders.filter(o=>o.terms!=='COD'&&(o.cpStatus==='Paid'||o.cpStatus==='COD Completed')).reduce((s,o)=>s+(o.terms==='Wire ($35.00)'?(Number(o.cpay)-(Number(o.wfee)||35)):Number(o.cpay)||0),0);
-  const carrierCostPending = pOrders.filter(o=>o.terms!=='COD'&&(o.cpStatus==='Pending'||o.cpStatus==='Overdue'||!o.cpStatus)).reduce((s,o)=>s+(o.terms==='Wire ($35.00)'?(Number(o.cpay)-(Number(o.wfee)||35)):Number(o.cpay)||0),0);
+  const carrierCostPaid = pOrders.filter(o=>o.cpStatus==='Paid'||o.cpStatus==='COD Completed').reduce((s,o)=>s+payableCarrierPay(o),0);
+  const carrierCostPending = pOrders.filter(o=>o.cpStatus==='Pending'||o.cpStatus==='Overdue'||!o.cpStatus).reduce((s,o)=>s+payableCarrierPay(o),0);
 
   // ── Contractor Payments (Payroll) ─────────────────────────────────────────
   const payroll = computePayrollRows(periodKey);
@@ -4778,12 +4874,10 @@ function renderCPA(){
 
   // AP = ALL pending carrier payments (not just this month) + payroll not yet paid this period
   const apCarriers = DB.orders.filter(o=>{
-    if(o.terms==='COD') return false;
+    if(payableCarrierPay(o)<=0) return false; // pure COD orders owe nothing
     const s = o.cpStatus||'Pending';
     return s==='Pending'||s==='Overdue';
-  }).reduce((s,o)=>{
-    return s+(o.terms==='Wire ($35.00)' ? (Number(o.cpay)-(Number(o.wfee)||35)) : (Number(o.cpay)||0));
-  },0);
+  }).reduce((s,o)=>s+payableCarrierPay(o),0);
   const ap = apCarriers + payrollUnpaidTotal;
 
   const canEditCPA = (ROLE==='owner'||ROLE==='finance');
@@ -5012,11 +5106,11 @@ function exportCPAExcel(periodKeyOverride){
   const arTotal = r2(arNotes.reduce((s,n)=>s+(parseFloat(n.balance)||0),0));
   // AP = ALL carrier payments Pending/Overdue, every date (not just this month)
   const apOrders = DB.orders.filter(o=>{
-    if(o.terms==='COD') return false;
+    if(payableCarrierPay(o)<=0) return false;
     const s = o.cpStatus||'Pending';
     return s==='Pending'||s==='Overdue';
   });
-  const apTotal = r2(apOrders.reduce((s,o)=>s+(o.terms==='Wire ($35.00)'?(Number(o.cpay)-(Number(o.wfee)||35)):(Number(o.cpay)||0)),0));
+  const apTotal = r2(apOrders.reduce((s,o)=>s+payableCarrierPay(o),0));
 
   const wb = XLSX.utils.book_new();
   const currFmt = '"$"#,##0.00;[Red]"($"#,##0.00")"';
@@ -5108,7 +5202,7 @@ function exportCPAExcel(periodKeyOverride){
     ['All outstanding Pending/Overdue carrier payments, all dates',''],['',''],
     ['Order ID','Date','Carrier','Terms','Status','Amount Owed'],
   ];
-  apOrders.forEach(o=>cpayRows.push([o.id,o.date,o.carrier||'',o.terms||'',o.cpStatus||'Pending',r2(o.terms==='Wire ($35.00)'?(Number(o.cpay)-(Number(o.wfee)||35)):(Number(o.cpay)||0))]));
+  apOrders.forEach(o=>cpayRows.push([o.id,o.date,o.carrier||'',hasSplits(o)?payBreakdownText(o):(o.terms||''),o.cpStatus||'Pending',r2(payableCarrierPay(o))]));
   cpayRows.push(['','','','','TOTAL ACCOUNTS PAYABLE — CARRIERS',apTotal]);
   const cpayWs = XLSX.utils.aoa_to_sheet(cpayRows);
   cpayWs['!cols']=[{wch:12},{wch:12},{wch:26},{wch:18},{wch:14},{wch:14}];
@@ -5163,10 +5257,10 @@ function exportCPAExcel(periodKeyOverride){
   ];
   pOrders.forEach(o=>ordRows.push([
     o.id,o.date,o.customer||'',getBrokerName(o.bId),o.carrier||'',
-    r2(Number(o.tariff)||0),r2(Number(o.cpay)||0),r2(Number(o.bfee)||0),
-    o.terms||'',o.cpStatus||'Pending'
+    r2(Number(o.tariff)||0),r2((Number(o.cpay)||0)+splitsTotal(o)),r2(Number(o.bfee)||0),
+    hasSplits(o)?(o.terms||'')+' + Split ('+payBreakdownText(o)+')':(o.terms||''),o.cpStatus||'Pending'
   ]));
-  ordRows.push(['','','TOTAL','','',r2(grossRevenue),r2(pOrders.reduce((s,o)=>s+(Number(o.cpay)||0),0)),revenue,'','']);
+  ordRows.push(['','','TOTAL','','',r2(grossRevenue),r2(pOrders.reduce((s,o)=>s+(Number(o.cpay)||0)+splitsTotal(o),0)),revenue,'','']);
   const ordWs = XLSX.utils.aoa_to_sheet(ordRows);
   ordWs['!cols']=[{wch:12},{wch:12},{wch:26},{wch:18},{wch:26},{wch:12},{wch:12},{wch:12},{wch:16},{wch:12}];
   for(let i=5;i<ordRows.length;i++){ ['F','G','H'].forEach(col=>{ const c=ordWs[col+(i+1)]; if(c && typeof c.v==='number'){ c.t='n'; c.z=currFmt; } }); }
@@ -5742,9 +5836,9 @@ function renderCPABalanceSheet(){
 
   // Carrier Payments Payable (AP) = what we OWE to carriers
   const apCarriers = DB.orders.filter(o=>{
-    if(o.terms==='COD') return false;
+    if(payableCarrierPay(o)<=0) return false;
     return o.cpStatus==='Pending' || o.cpStatus==='Overdue';
-  }).reduce((s,o)=>s+(o.terms==='Wire ($35.00)'?(Number(o.cpay)-(Number(o.wfee)||35)):(Number(o.cpay)||0)),0);
+  }).reduce((s,o)=>s+payableCarrierPay(o),0);
 
   // Payroll Payable (AP) = staff/brokers not yet marked Paid ✓ this period
   const apPayroll = computePayrollRows(periodKey).unpaidTotal;
