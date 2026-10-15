@@ -830,6 +830,11 @@ body.sandy-mode .ni  { font-size: 12px !important; }
               <label style="font-size:9px;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:.4px;">BOL Status</label>
               <select id="ord-fs" onchange="renderOrders()" style="font-size:11px;padding:5px 8px;"><option value="">All</option><option value="OK">BOL OK</option><option value="Pending">BOL Pending</option></select>
             </div>
+            <!-- Date sort toggle -->
+            <div style="display:flex;flex-direction:column;gap:3px;">
+              <label style="font-size:9px;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:.4px;">Date Order</label>
+              <button type="button" id="ord-sort-btn" class="btn cp-filter-btn" onclick="toggleDateSort('ord')" style="font-size:11px;padding:5px 10px;white-space:nowrap;">🔽 Newest first</button>
+            </div>
             <!-- Clear button -->
             <div style="display:flex;flex-direction:column;gap:3px;">
               <label style="font-size:9px;font-weight:600;color:transparent;">.</label>
@@ -894,6 +899,10 @@ body.sandy-mode .ni  { font-size: 12px !important; }
                 <option value="COD Completed">✓ COD Completed</option>
                 <option value="Overdue">⚠ Overdue</option>
               </select>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:2px;">
+              <label style="font-size:9px;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:.4px;">Date Order</label>
+              <button type="button" id="cp-sort-btn" class="btn cp-filter-btn" onclick="toggleDateSort('cp')" style="font-size:11px;padding:4px 10px;white-space:nowrap;">🔽 Newest first</button>
             </div>
             <div style="display:flex;flex-direction:column;gap:2px;">
               <label style="font-size:9px;color:transparent;">.</label>
@@ -2307,6 +2316,37 @@ function collectSplits(){
     amount: Math.round((parseFloat((r.querySelector('.split-amount').value||'').replace(/[$,]/g,''))||0)*100)/100
   })).filter(x=>x.method && x.amount>0).slice(0,MAX_SPLITS);
 }
+// ═══════════════════════════════════════════════════
+// DATE SORT TOGGLE (Orders / Carrier Payments) — saved per user in localStorage
+// 'desc' = newest first (default) · 'asc' = oldest first
+// ═══════════════════════════════════════════════════
+function dateSortKey(sec){ return 'ecl_dateSort_'+sec+'_'+(ROLE||'')+'_'+(window._currentUserName||''); }
+function getDateSort(sec){
+  try{ const v=localStorage.getItem(dateSortKey(sec)); return v==='asc'?'asc':'desc'; }catch(e){ return 'desc'; }
+}
+function updateSortBtn(sec){
+  const b=document.getElementById(sec+'-sort-btn');
+  if(!b) return;
+  const asc=getDateSort(sec)==='asc';
+  b.textContent = asc ? '🔼 Oldest first' : '🔽 Newest first';
+  b.title = 'Click to show '+(asc?'newest':'oldest')+' first';
+}
+function toggleDateSort(sec){
+  const next = getDateSort(sec)==='asc' ? 'desc' : 'asc';
+  try{ localStorage.setItem(dateSortKey(sec), next); }catch(e){}
+  if(sec==='ord') renderOrders(); else renderCarrier();
+}
+function cmpByDate(sec){
+  const dir = getDateSort(sec)==='asc' ? 1 : -1;
+  return (a,b)=>dir*(a.date||'').localeCompare(b.date||'');
+}
+// Carrier Payments Terms: every method of the order, e.g. "COD / Super Pay"
+function termsFullBadgeHtml(o){
+  if(!hasSplits(o)) return termsBadgeHtml(o);
+  const methods=[payMethodShort(o.terms)];
+  getSplits(o).forEach(x=>{ const m=payMethodShort(x.method); if(!methods.includes(m)) methods.push(m); });
+  return bdg(methods.join(' / '), termsBadgeCls(o.terms))+' <span class="badge b-pur" style="font-size:9px;" title="'+payBreakdownText(o).replace(/"/g,'&quot;')+'">Split</span>';
+}
 function getPeriodKey(dateStr){
   if(!dateStr)return'';
   const d=new Date(dateStr+'T12:00:00');
@@ -2500,7 +2540,8 @@ function renderOrders(){
     if(dateTo   && o.date && o.date > dateTo)                       return false;
     if(custSearch && !(o.customer||'').toLowerCase().includes(custSearch)) return false;
     return true;
-  }).sort((a,b) => (a.date||'').localeCompare(b.date||''));
+  }).sort(cmpByDate('ord'));
+  updateSortBtn('ord');
   let T={tariff:0,cpay:0,cod:0,proc:0,wf:0,bf:0};
   if(data.length===0){
     document.getElementById('ord-body').innerHTML=`<tr><td colspan="27" style="text-align:center;padding:40px;color:var(--tx3);font-size:12px;">No orders yet. Click <strong>+ New Order</strong> to add your first order.</td></tr>`;
@@ -2636,7 +2677,10 @@ function renderCarrier(){
     document.getElementById('cp-body').innerHTML=`<tr><td colspan="13" style="text-align:center;padding:40px;color:var(--tx3);">No orders yet.</td></tr>`;
     document.getElementById('cp-foot').innerHTML='';
   } else {
-    const rows = DB.orders.map((o, ri) => {
+    updateSortBtn('cp');
+    const cmpCp = cmpByDate('cp');
+    const sortedCp = DB.orders.map((o,ri)=>({o,ri})).sort((a,b)=>cmpCp(a.o,b.o));
+    const rows = sortedCp.map(({o, ri}) => {
       const status  = o.cpStatus || (o.terms==='COD' ? 'COD Completed' : '');
       const netCp   = totalCarrierPay(o);
       if(flt && status !== flt) return '';
@@ -2699,7 +2743,7 @@ function renderCarrier(){
         <td class="mn">${o.date||'—'}</td>
         <td>${cpDisplay}</td>
         <td style="font-size:11px;color:var(--tx2);">${fact}</td>
-        <td>${termsBadgeHtml(o)}</td>
+        <td>${termsFullBadgeHtml(o)}</td>
         <td>${statusSel}</td>
         <td>${paidDateFld}</td>
         <td>${dmgSel}</td>
