@@ -148,6 +148,20 @@ select:focus,input:focus{border-color:var(--b6);}
 .modal-title{font-size:16px;font-weight:600;margin-bottom:16px;}
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
 .form-grid.one{grid-template-columns:1fr;}
+/* ── Brokers & Rules redesign ── */
+.cfg-sec{margin-bottom:18px;}
+.cfg-grid6{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;}
+.cfg-grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+.cfg-card{background:var(--sur);border:1px solid var(--bdr);border-radius:var(--rl);padding:12px 14px;}
+.cfg-chip{display:inline-block;font-size:10px;padding:2px 8px;border-radius:10px;background:var(--b0,rgba(0,0,0,.05));border:1px solid var(--bdr);margin:2px 3px 2px 0;}
+.cfg-role{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--tx3);}
+.cfg-tbl{width:100%;border-collapse:collapse;font-size:11px;}
+.cfg-tbl th{font-size:9px;font-weight:700;color:var(--tx3);text-transform:uppercase;text-align:left;padding:8px 10px;border-bottom:1px solid var(--bdr);}
+.cfg-tbl td{padding:7px 10px;border-bottom:1px solid var(--bdr);vertical-align:middle;}
+.cfg-h1row{display:flex;flex-wrap:wrap;gap:10px;}
+.cfg-h1card{background:var(--sur);border:1px solid var(--bdr);border-radius:var(--rl);padding:10px 12px;min-width:170px;display:flex;flex-direction:column;gap:6px;font-size:11px;}
+@media(max-width:900px){.cfg-grid6{grid-template-columns:repeat(3,1fr);}.cfg-grid3{grid-template-columns:1fr 1fr;}}
+@media(max-width:600px){.cfg-grid6{grid-template-columns:repeat(2,1fr);}.cfg-grid3{grid-template-columns:1fr;}.cfg-tblwrap{overflow-x:auto;}}
 .field{display:flex;flex-direction:column;gap:4px;}
 .field label{font-size:10px;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:.4px;}
 .field input,.field select{width:100%;}
@@ -1186,35 +1200,46 @@ body.sandy-mode .ni  { font-size: 12px !important; }
 
       <!-- CONFIG -->      <!-- CONFIG -->
       <div id="sheet-config" class="sheet">
-        <div class="kg" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px;" id="cfg-kpis"></div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;flex-wrap:wrap;">
-          <div>
-            <div class="sec-bar" style="margin-bottom:8px;">
-              <div class="st st-b">Brokers</div>
-              <button class="btn btn-p editor-only" onclick="openBrokerModal()">+ Add Broker</button>
-            </div>
-            <div style="background:var(--sur);border:1px solid var(--bdr);border-radius:var(--rl);padding:14px;">
-              <div style="display:grid;grid-template-columns:1fr 90px 90px 80px 70px auto auto;gap:6px;padding:0 0 6px;border-bottom:1px solid var(--bdr);font-size:9px;font-weight:700;color:var(--tx3);text-transform:uppercase;">
-                <span>Name</span><span>Tier</span><span>Is Supervisor</span><span>H1</span><span>Status</span><span></span><span></span>
-              </div>
-              <div id="broker-list"></div>
-            </div>
+        <!-- 1. KPIs -->
+        <div class="cfg-grid6 cfg-sec" id="cfg-kpis"></div>
+
+        <!-- 2. Staff & Supervisors -->
+        <div class="cfg-sec">
+          <div class="sec-bar" style="margin-bottom:8px;">
+            <div class="st st-b">Staff &amp; Supervisors</div>
+            <button class="btn btn-p editor-only" onclick="toggleAddSupervisorForm()">+ Add supervisor</button>
           </div>
-          <div>
-            <div class="sec-bar" style="margin-bottom:8px;"><div class="st st-a">Tiers &amp; Commissions</div></div>
-            <div id="tier-rules"></div>
-            <div style="background:var(--sur);border:1px solid var(--bdr);border-radius:var(--rl);padding:14px;margin-top:10px;">
-              <div style="font-size:10px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">H1 Rules — Payroll (day 26 to 10)</div>
-              <div id="h1-rules"></div>
-              <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--bdr);">
-                <button class="btn editor-only" onclick="addH1Rule()">+ Add H1 Threshold</button>
-              </div>
-            </div>
-            <div style="background:var(--sur);border:1px solid var(--bdr);border-radius:var(--rl);padding:14px;margin-top:10px;">
-              <div style="font-size:10px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Change Your PIN</div>
-              <div style="font-size:10px;color:var(--tx3);">Use the "Change My PIN" page in the sidebar to update your own PIN.</div>
-            </div>
+          <div id="cfg-add-sup" style="display:none;margin-bottom:10px;"></div>
+          <div class="cfg-grid3" id="cfg-staff"></div>
+        </div>
+
+        <!-- 3. Brokers -->
+        <div class="cfg-sec">
+          <div class="sec-bar" style="margin-bottom:8px;">
+            <div class="st st-b">Brokers</div>
+            <button class="btn btn-p editor-only" onclick="openBrokerModal()">+ Add broker</button>
           </div>
+          <div class="cfg-tblwrap" style="background:var(--sur);border:1px solid var(--bdr);border-radius:var(--rl);overflow:hidden;">
+            <table class="cfg-tbl">
+              <thead><tr><th>Name</th><th>Tier</th><th>Supervisor</th><th>Comm %</th><th>H1</th><th>Status</th><th></th></tr></thead>
+              <tbody id="broker-list"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 4. Tiers & Commissions -->
+        <div class="cfg-sec">
+          <div class="sec-bar" style="margin-bottom:8px;"><div class="st st-a">Tiers &amp; Commissions</div></div>
+          <div class="cfg-grid3" id="tier-rules"></div>
+        </div>
+
+        <!-- 5. H1 Rules -->
+        <div class="cfg-sec">
+          <div class="sec-bar" style="margin-bottom:8px;">
+            <div class="st st-a">H1 Rules — Payroll (day 26 to 10)</div>
+            <button class="btn editor-only" onclick="addH1Rule()">+ Add threshold</button>
+          </div>
+          <div class="cfg-h1row" id="h1-rules"></div>
         </div>
 
         <!-- ECLA Enrollments -->
@@ -1606,6 +1631,17 @@ body.sandy-mode .ni  { font-size: 12px !important; }
 </div>
 
 <!-- BROKER MODAL -->
+<div id="rookie-alert-modal" class="modal-overlay" style="z-index:5000;">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-title">🎓 Rookie Updates</div>
+    <div id="rookie-alert-body"></div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('rookie-alert-modal')">Dismiss</button>
+      <button class="btn btn-p" onclick="closeModal('rookie-alert-modal');nav(document.querySelector('.ni[data-s=config]'))">Go to Brokers &amp; Rules</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="broker-modal">
   <div class="modal">
     <div class="modal-title">Add New Broker</div>
@@ -2154,6 +2190,8 @@ function bootApp(role) {
   updateBadges();
   if(IS_EDITOR){ setTimeout(function(){ if(typeof checkAutoBackup==='function') checkAutoBackup(); if(typeof checkOAuthCallback==='function') checkOAuthCallback(); }, 1500); }
   setTimeout(initFirebaseSync, 800);
+  // Rookie alerts popup — after Firebase sync has had time to load brokers
+  if(IS_EDITOR) setTimeout(checkRookieAlerts, 2500);
 }
 
 // ═══════════════════════════════════════════════════
@@ -3492,88 +3530,203 @@ function renderMonthly(key){
 // ═══════════════════════════════════════════════════
 // CONFIG
 // ═══════════════════════════════════════════════════
+// ── Brokers & Rules ─────────────────────────────────────────────────────────
+const STAFF_ROLES = {'Yohana':'Operations Manager','Beatriz':'Supervisor','Manuel':'Staff','Mariano Pava':'Trainer'};
+let CFG_EDIT_TEAM = null;   // broker id of the supervisor whose team editor is open
+function cfgEsc(t){return String(t==null?'':t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function cfgCommLabel(tid){
+  if(!TIERS[tid]) return '—';
+  const r = TIERS[tid].commRules.map(x=>(x.pct*100).toFixed(0));
+  return r.length>1 ? r[0]+'–'+r[r.length-1]+'%' : r[0]+'%';
+}
+function toggleEditTeam(id){ CFG_EDIT_TEAM = (CFG_EDIT_TEAM===id) ? null : id; renderConfig(); }
+// Move a broker to a supervisor's team ('' = no supervisor)
+function setBrokerSupervisor(memberId, supId){
+  if(!IS_EDITOR) return;
+  const now = Date.now();
+  DB.brokers.forEach(x=>{
+    if(!isSupervisorBroker(x) || isAllOverride(x)) return;
+    const t = getSupervisorTeamIds(x);
+    if(t.includes(memberId) && x.id!==supId){ x.supervisorTeam = t.filter(id=>id!==memberId); x._ts = now; }
+  });
+  const sup = DB.brokers.find(x=>x.id===supId);
+  if(sup){
+    const t = getSupervisorTeamIds(sup).filter(id=>id!==memberId);
+    t.push(memberId); sup.supervisorTeam = t; sup._ts = now;
+  }
+  saveData(); renderConfig();
+}
+function toggleAddSupervisorForm(){
+  if(!IS_EDITOR) return;
+  const box = document.getElementById('cfg-add-sup');
+  if(box.style.display!=='none'){ box.style.display='none'; return; }
+  const cands = DB.brokers.filter(b=>b.active && !b.deleted && !isSupervisorBroker(b) && !isAllOverride(b) && !(STAFF_SALARY[b.name] && STAFF_SALARY[b.name].overrideFrom==='ROOKIE_3MONTHS'));
+  const all = DB.brokers.filter(b=>!b.deleted && !isAllOverride(b));
+  box.innerHTML = `<div class="cfg-card">
+    <div style="font-size:12px;font-weight:600;margin-bottom:10px;">New supervisor</div>
+    <div class="form-grid">
+      <div class="field"><label>Broker</label><select id="sup-new-broker">${cands.map(b=>`<option value="${b.id}">${cfgEsc(b.name)}</option>`).join('')}</select></div>
+      <div class="field"><label>Override type</label><select id="sup-new-type">
+        <option value="0.05">5% of assigned team</option>
+        <option value="0.03">3% of assigned team</option>
+        <option value="0.10">10% of assigned team</option>
+        <option value="0">No override (supervision only)</option>
+      </select></div>
+    </div>
+    <div style="font-size:9px;font-weight:700;color:var(--tx3);text-transform:uppercase;margin:10px 0 6px;">Assign team</div>
+    <div style="display:flex;flex-wrap:wrap;gap:4px 14px;">${all.map(x=>{
+      const cur = getSupervisor(x);
+      return `<label style="display:flex;align-items:center;gap:4px;font-size:10px;${x.active?'':'opacity:.5;'}"><input type="checkbox" class="sup-new-member" value="${x.id}">${cfgEsc(x.name)}${cur?` <span style="color:var(--tx3);">(${cfgEsc(cur)})</span>`:''}</label>`;
+    }).join('')}</div>
+    <div class="modal-footer" style="margin-top:12px;">
+      <button class="btn" onclick="toggleAddSupervisorForm()">Cancel</button>
+      <button class="btn btn-p" onclick="saveNewSupervisor()">Save supervisor</button>
+    </div>
+  </div>`;
+  box.style.display = '';
+}
+function saveNewSupervisor(){
+  if(!IS_EDITOR) return;
+  const id  = parseInt(document.getElementById('sup-new-broker').value);
+  const sup = DB.brokers.find(b=>b.id===id);
+  if(!sup){ alert('Select a broker.'); return; }
+  const pct = parseFloat(document.getElementById('sup-new-type').value)||0;
+  const team = [...document.querySelectorAll('.sup-new-member:checked')].map(c=>parseInt(c.value)).filter(x=>x!==id);
+  const now = Date.now();
+  // A broker belongs to only one supervisor team
+  DB.brokers.forEach(x=>{
+    if(x===sup || !isSupervisorBroker(x) || isAllOverride(x)) return;
+    const t = getSupervisorTeamIds(x);
+    if(t.some(m=>team.includes(m))){ x.supervisorTeam = t.filter(m=>!team.includes(m)); x._ts = now; }
+  });
+  sup.isSupervisor = true; sup.supervisorTeam = team; sup.supervisorOverridePct = pct; sup._ts = now;
+  document.getElementById('cfg-add-sup').style.display='none';
+  saveData(); renderConfig();
+}
+
 function renderConfig(){
   if(ROLE !== 'owner' && ROLE !== 'manuel' && ROLE !== 'sandy' && ROLE !== 'finance'){ return; }
+  const act = DB.brokers.filter(b=>b.active && !b.deleted);
+  // 1. KPIs
   document.getElementById('cfg-kpis').innerHTML=[
-    {lbl:'Active Brokers',val:DB.brokers.filter(b=>b.active).length,c:'cb'},
-    {lbl:'Senior Brokers',val:DB.brokers.filter(b=>b.active&&b.tier==='senior').length,c:'cp'},
-    {lbl:'Broker Agents',val:DB.brokers.filter(b=>b.active&&b.tier==='agent').length,c:'cb'},
-    {lbl:'Staff',val:DB.brokers.filter(b=>b.active&&b.tier==='staff').length,c:''},
-    {lbl:'Rookies',val:DB.brokers.filter(b=>b.active&&b.tier==='rookie').length,c:''},
-    {lbl:'Jr. Brokers',val:DB.brokers.filter(b=>b.active&&b.tier==='jr').length,c:''},
+    {lbl:'Total Brokers',val:act.length,c:'cb'},
+    {lbl:'Senior',val:act.filter(b=>b.tier==='senior').length,c:'cp'},
+    {lbl:'Agent',val:act.filter(b=>b.tier==='agent').length,c:'cb'},
+    {lbl:'Staff',val:act.filter(b=>b.tier==='staff').length,c:''},
+    {lbl:'Jr. Broker',val:act.filter(b=>b.tier==='jr').length,c:''},
+    {lbl:'Rookie',val:act.filter(b=>b.tier==='rookie').length,c:''},
   ].map(k=>`<div class="kpi ${k.c}"><div class="lbl">${k.lbl}</div><div class="val">${k.val}</div></div>`).join('');
+
   const liveBrokers = DB.brokers.filter(b=>!b.deleted);
-  document.getElementById('broker-list').innerHTML=liveBrokers.map((b,i)=>{
-    const realIdx = DB.brokers.indexOf(b);
-    const tier=getTier(b.tier);
-    const h1=tier.h1Eligible?bdg('H1 Eligible','b-teal'):bdg('No H1','b-gray');
-    const isSup = isSupervisorBroker(b);
-    const allOv = isAllOverride(b);
-    const reportsTo = getSupervisor(b);
-    // Is Supervisor toggle (Yohana = override from ALL brokers, not a team)
-    const supSel = allOv
-      ? bdg('5% of All','b-teal')
-      : `<label style="display:flex;align-items:center;gap:5px;font-size:10px;cursor:${IS_EDITOR?'pointer':'default'};">
-          <input type="checkbox" ${isSup?'checked':''} ${!IS_EDITOR?'disabled':''} onchange="toggleSupervisor(${realIdx}, this.checked)">
-          ${isSup?'<strong>Yes</strong>':'No'}
-        </label>`;
-    // Team multi-select (only for supervisors)
-    let teamBox = '';
-    if(isSup && !allOv){
-      const team = getSupervisorTeamIds(b);
-      const candidates = liveBrokers.filter(x=>x.id!==b.id && !isAllOverride(x));
-      teamBox = `<div style="grid-column:1/-1;margin:4px 0 2px;padding:8px 10px;background:var(--bg,rgba(0,0,0,.03));border:1px dashed var(--bdr);border-radius:6px;">
-        <div style="font-size:9px;font-weight:700;color:var(--tx3);text-transform:uppercase;margin-bottom:6px;">Team of ${b.name} — ${team.length} member${team.length===1?'':'s'} · earns 5% of team sales (not own sales)</div>
-        <div style="display:flex;flex-wrap:wrap;gap:4px 12px;">
-          ${candidates.map(x=>{
-            const other = team.includes(x.id) ? '' : getSupervisor(x);
-            return `<label style="display:flex;align-items:center;gap:4px;font-size:10px;${x.active?'':'opacity:.5;'}cursor:${IS_EDITOR?'pointer':'default'};" title="${other?'Currently on '+other+'’s team':''}">
-              <input type="checkbox" ${team.includes(x.id)?'checked':''} ${!IS_EDITOR?'disabled':''} onchange="setTeamMember(${realIdx}, ${x.id}, this.checked)">
-              ${x.name}${other?` <span style="color:var(--tx3);">(${other})</span>`:''}
-            </label>`;
-          }).join('') || '<span style="font-size:10px;color:var(--tx3);">No brokers available.</span>'}
-        </div>
-      </div>`;
+  const byId = id => DB.brokers.find(b=>b.id===id);
+
+  // 2. Staff & Supervisors
+  const staffList = liveBrokers.filter(b=>STAFF_ROLES[b.name] || isSupervisorBroker(b));
+  const order = ['Yohana','Beatriz','Manuel','Mariano Pava'];
+  staffList.sort((a,b)=>{const ia=order.indexOf(a.name),ib=order.indexOf(b.name);return (ia<0?99:ia)-(ib<0?99:ib);});
+  document.getElementById('cfg-staff').innerHTML = staffList.map(b=>{
+    const idx = DB.brokers.indexOf(b);
+    const cfg = STAFF_SALARY[b.name];
+    const role = STAFF_ROLES[b.name] || 'Supervisor';
+    let ovr = '', body = '', actions = '';
+    if(isAllOverride(b)){
+      ovr = bdg('5% of all sales','b-teal');
+      body = `<div style="font-size:11px;color:var(--tx2);">5% of every broker's sales, except her own.</div>`;
+    } else if(cfg && cfg.overrideFrom==='ROOKIE_3MONTHS'){
+      const rk = activeRookies();
+      ovr = bdg('5% of Rookies','b-teal');
+      body = `<div style="font-size:11px;color:var(--tx2);margin-bottom:6px;">5% of active Rookies (first 90 days).</div>
+        <div>${rk.length ? rk.map(r=>{const st=rookieStartMs(r);const d=st===null?null:Math.floor((Date.now()-st)/86400000);
+          return `<span class="cfg-chip">${cfgEsc(r.name)}${d===null?'':` · ${d}d`}</span>`;}).join('') : '<span style="font-size:10px;color:var(--tx3);">No active rookies.</span>'}</div>`;
+    } else if(isSupervisorBroker(b)){
+      const team = getSupervisorTeamIds(b).map(byId).filter(x=>x && !x.deleted);
+      const pct = cfg ? (cfg.overridePct||SUPERVISOR_OVERRIDE_PCT) : (typeof b.supervisorOverridePct==='number' ? b.supervisorOverridePct : SUPERVISOR_OVERRIDE_PCT);
+      ovr = pct>0 ? bdg((pct*100).toFixed(0)+'% of team','b-teal') : bdg('No override','b-gray');
+      body = `<div style="font-size:11px;color:var(--tx2);margin-bottom:6px;">${pct>0?(pct*100).toFixed(0)+'% of her/his team’s sales (not own sales).':'Supervision only.'}</div>
+        <div>${team.length ? team.map(x=>`<span class="cfg-chip" style="${x.active?'':'opacity:.5;'}">${cfgEsc(x.name)}</span>`).join('') : '<span style="font-size:10px;color:var(--tx3);">No team assigned.</span>'}</div>`;
+      if(IS_EDITOR){
+        actions = `<button class="btn" style="font-size:10px;padding:3px 8px;" onclick="toggleEditTeam(${b.id})">${CFG_EDIT_TEAM===b.id?'Done':'Edit team'}</button>`
+          + (!cfg ? ` <button class="btn btn-r" style="font-size:10px;padding:3px 8px;" onclick="if(confirm('Remove supervisor role?'))toggleSupervisor(${idx}, false)">Remove</button>` : '');
+      }
+      if(CFG_EDIT_TEAM===b.id && IS_EDITOR){
+        const tIds = getSupervisorTeamIds(b);
+        const cands = liveBrokers.filter(x=>x.id!==b.id && !isAllOverride(x));
+        body += `<div style="margin-top:8px;padding:8px 10px;border:1px dashed var(--bdr);border-radius:6px;display:flex;flex-wrap:wrap;gap:4px 12px;">
+          ${cands.map(x=>{const other = tIds.includes(x.id)?'':getSupervisor(x);
+            return `<label style="display:flex;align-items:center;gap:4px;font-size:10px;${x.active?'':'opacity:.5;'}cursor:pointer;">
+              <input type="checkbox" ${tIds.includes(x.id)?'checked':''} onchange="setTeamMember(${idx}, ${x.id}, this.checked)">${cfgEsc(x.name)}${other?` <span style="color:var(--tx3);">(${cfgEsc(other)})</span>`:''}</label>`;}).join('')}
+        </div>`;
+      }
+    } else {
+      ovr = bdg('No override','b-gray');
+      body = `<div style="font-size:11px;color:var(--tx2);">Staff — no override.</div>`;
     }
-    return`<div style="display:grid;grid-template-columns:1fr 90px 90px 80px 70px auto auto;gap:6px;align-items:center;padding:7px 0;border-bottom:1px solid var(--bdr);font-size:11px;">
-      <span style="font-weight:500;">${b.name}${reportsTo?`<div style="font-size:9px;font-weight:400;color:var(--tx3);">Team: ${reportsTo}</div>`:''}</span>
-      <select onchange="DB.brokers[${realIdx}].tier=this.value;DB.brokers[${realIdx}]._ts=Date.now();saveData();renderConfig();" style="font-size:10px;padding:3px 5px;" ${!IS_EDITOR?'disabled':''}>
-        <option value="staff"  ${b.tier==='staff'  ?'selected':''}>Staff</option>
-        <option value="senior" ${b.tier==='senior' ?'selected':''}>Senior</option>
-        <option value="agent"  ${b.tier==='agent'  ?'selected':''}>Agent</option>
-        <option value="new"    ${b.tier==='new'    ?'selected':''}>New Broker</option>
-        <option value="rookie" ${b.tier==='rookie' ?'selected':''}>Rookie</option>
-        <option value="jr"     ${b.tier==='jr'     ?'selected':''}>Jr. Broker</option>
-      </select>
-      ${supSel}
-      ${tier.h1Eligible
-        ? `<select onchange="DB.brokers[${realIdx}].h1=(this.value==='false'?false:undefined);DB.brokers[${realIdx}]._ts=Date.now();saveData();renderConfig();" style="font-size:10px;padding:3px 5px;" ${!IS_EDITOR?'disabled':''}>
-            <option value="true"  ${b.h1!==false?'selected':''}>H1 ✓</option>
-            <option value="false" ${b.h1===false?'selected':''}>No H1</option>
-           </select>`
-        : bdg('No H1','b-gray')}
-      ${bdg(b.active?'Active':'Inactive',b.active?'b-paid':'b-warn')}
-      ${IS_EDITOR?`<button class="btn" style="font-size:10px;padding:3px 8px;" onclick="DB.brokers[${realIdx}].active=!DB.brokers[${realIdx}].active;DB.brokers[${realIdx}]._ts=Date.now();saveData();renderConfig();">${b.active?'Off':'On'}</button>`:'<span></span>'}
-      ${IS_EDITOR?`<button class="btn btn-r" style="font-size:10px;padding:3px 8px;" onclick="deleteBroker(${realIdx})">✕</button>`:'<span></span>'}
-      ${teamBox}
+    return `<div class="cfg-card" style="${b.active?'':'opacity:.6;'}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px;">
+        <div><div style="font-size:13px;font-weight:600;">${cfgEsc(b.name)}</div><div class="cfg-role">${cfgEsc(role)}</div></div>
+        ${ovr}
+      </div>
+      ${body}
+      ${actions?`<div style="margin-top:10px;display:flex;gap:6px;">${actions}</div>`:''}
     </div>`;
   }).join('');
+
+  // 3. Brokers table
+  const sups = liveBrokers.filter(b=>isSupervisorBroker(b) && !isAllOverride(b));
+  const tierOpts = [['staff','Staff'],['senior','Senior'],['agent','Agent'],['new','New Broker'],['rookie','Rookie'],['jr','Jr. Broker']];
+  document.getElementById('broker-list').innerHTML = liveBrokers.map(b=>{
+    const i = DB.brokers.indexOf(b);
+    const tier = getTier(b.tier);
+    const dis = !IS_EDITOR?'disabled':'';
+    const opts = (TIERS[b.tier]?'':`<option value="${cfgEsc(b.tier)}" selected>${cfgEsc(b.tier)}</option>`)
+      + tierOpts.map(([v,l])=>`<option value="${v}" ${b.tier===v?'selected':''}>${l}</option>`).join('');
+    const curSup = sups.find(s=>s.id!==b.id && getSupervisorTeamIds(s).includes(b.id));
+    const supSel = (isAllOverride(b) || isSupervisorBroker(b))
+      ? '<span style="font-size:10px;color:var(--tx3);">—</span>'
+      : `<select onchange="setBrokerSupervisor(${b.id}, parseInt(this.value)||0)" style="font-size:10px;padding:3px 5px;" ${dis}>
+          <option value="">None</option>
+          ${sups.filter(s=>s.id!==b.id).map(s=>`<option value="${s.id}" ${curSup&&curSup.id===s.id?'selected':''}>${cfgEsc(s.name)}</option>`).join('')}
+        </select>`;
+    const h1 = (TIERS[b.tier] && tier.h1Eligible)
+      ? `<select onchange="DB.brokers[${i}].h1=(this.value==='false'?false:undefined);DB.brokers[${i}]._ts=Date.now();saveData();renderConfig();" style="font-size:10px;padding:3px 5px;" ${dis}>
+          <option value="true" ${b.h1!==false?'selected':''}>H1 ✓</option>
+          <option value="false" ${b.h1===false?'selected':''}>No H1</option>
+        </select>`
+      : bdg('No H1','b-gray');
+    const status = IS_EDITOR
+      ? `<span style="cursor:pointer;" title="Click to toggle" onclick="DB.brokers[${i}].active=!DB.brokers[${i}].active;DB.brokers[${i}]._ts=Date.now();saveData();renderConfig();">${bdg(b.active?'Active':'Inactive',b.active?'b-paid':'b-warn')}</span>`
+      : bdg(b.active?'Active':'Inactive',b.active?'b-paid':'b-warn');
+    return `<tr style="${b.active?'':'opacity:.6;'}">
+      <td style="font-weight:500;">${cfgEsc(b.name)}</td>
+      <td><select onchange="DB.brokers[${i}].tier=this.value;DB.brokers[${i}]._ts=Date.now();saveData();renderConfig();" style="font-size:10px;padding:3px 5px;" ${dis}>${opts}</select></td>
+      <td>${supSel}</td>
+      <td style="font-family:var(--mono);">${cfgCommLabel(b.tier)}</td>
+      <td>${h1}</td>
+      <td>${status}</td>
+      <td style="text-align:right;">${IS_EDITOR?`<button class="btn btn-r" style="font-size:10px;padding:3px 8px;" onclick="deleteBroker(${i})">✕</button>`:''}</td>
+    </tr>`;
+  }).join('');
+
+  // 4. Tiers & Commissions (3x2)
   document.getElementById('tier-rules').innerHTML=Object.entries(TIERS).map(([key,tier])=>`
-    <div style="background:var(--sur);border:1px solid var(--bdr);border-radius:var(--rl);padding:12px 14px;margin-bottom:8px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+    <div class="cfg-card">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;margin-bottom:8px;flex-wrap:wrap;">
         <span style="font-size:12px;font-weight:600;">${tier.label}</span>
-        <div style="display:flex;gap:6px;">${bdg(tier.h1Eligible?'H1 Eligible':'No H1',tier.h1Eligible?'b-teal':'b-gray')} ${bdg(DB.brokers.filter(b=>b.active&&b.tier===key).length+' brokers','b-gray')}</div>
+        <div style="display:flex;gap:4px;">${bdg(tier.h1Eligible?'H1':'No H1',tier.h1Eligible?'b-teal':'b-gray')} ${bdg(act.filter(b=>b.tier===key).length+'','b-gray')}</div>
       </div>
-      ${tier.commRules.map((r,ri)=>`<div style="font-size:11px;color:var(--tx2);padding:3px 0;border-bottom:.5px solid var(--bdr);">$${r.min.toLocaleString()} ${ri<tier.commRules.length-1?'– $'+(tier.commRules[ri+1].min-1).toLocaleString():' and above'} → <strong>${(r.pct*100).toFixed(0)}% commission</strong></div>`).join('')}
+      ${tier.commRules.map((r,ri)=>`<div style="font-size:11px;color:var(--tx2);padding:3px 0;border-bottom:.5px solid var(--bdr);">$${r.min.toLocaleString()} ${ri<tier.commRules.length-1?'– $'+(tier.commRules[ri+1].min-1).toLocaleString():'+'} → <strong>${(r.pct*100).toFixed(0)}%</strong></div>`).join('')}
+      ${tier.rookieOverride?'<div style="font-size:10px;color:var(--tx3);margin-top:6px;">+5% override → Mariano Pava (first 90 days)</div>':''}
     </div>`).join('');
+
+  // 5. H1 Rules (horizontal cards)
   const rules=[...DB.h1Rules].sort((a,b)=>b.min-a.min);
-  document.getElementById('h1-rules').innerHTML=rules.map((r,i)=>`
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:8px;align-items:center;padding:6px 0;border-bottom:.5px solid var(--bdr);font-size:11px;">
-      <div>Fee ≥ <input type="number" value="${r.min}" style="width:75px;" onchange="updateH1(${i},'min',this.value)" ${!IS_EDITOR?'disabled':''}></div>
-      <div>Pays: <input type="number" value="${r.pay}" style="width:65px;" onchange="updateH1(${i},'pay',this.value)" ${!IS_EDITOR?'disabled':''}></div>
-      <div>${bdg('$'+r.pay,'b-teal')}</div>
-      ${IS_EDITOR?`<button class="btn btn-r" style="font-size:9px;padding:2px 7px;" onclick="removeH1(${i})">✕</button>`:'<span></span>'}
-    </div>`).join('');
+  document.getElementById('h1-rules').innerHTML = rules.length ? rules.map((r,i)=>`
+    <div class="cfg-h1card">
+      <div style="display:flex;justify-content:space-between;align-items:center;">${bdg('$'+r.pay,'b-teal')}
+        ${IS_EDITOR?`<button class="btn btn-r" style="font-size:9px;padding:2px 7px;" onclick="removeH1(${i})">✕</button>`:''}</div>
+      <label style="display:flex;justify-content:space-between;align-items:center;gap:6px;">Fee ≥ <input type="number" value="${r.min}" style="width:80px;" onchange="updateH1(${i},'min',this.value)" ${!IS_EDITOR?'disabled':''}></label>
+      <label style="display:flex;justify-content:space-between;align-items:center;gap:6px;">Pays <input type="number" value="${r.pay}" style="width:80px;" onchange="updateH1(${i},'pay',this.value);renderConfig();" ${!IS_EDITOR?'disabled':''}></label>
+    </div>`).join('') : '<div style="font-size:11px;color:var(--tx3);">No thresholds yet.</div>';
 }
 function openBrokerModal(){if(!IS_EDITOR)return;document.getElementById('broker-modal').classList.add('show');}
 function saveBroker(){
@@ -3582,7 +3735,7 @@ function saveBroker(){
   const tier=document.getElementById('br-tier').value;
   const active=document.getElementById('br-active').value==='true';
   const newId=Math.max(...DB.brokers.map(b=>b.id),0)+1;
-  DB.brokers.push({id:newId,name,tier,active,_ts:Date.now()});
+  DB.brokers.push({id:newId,name,tier,active,startDate:new Date().toISOString().slice(0,10),_ts:Date.now()});
   saveData();closeModal('broker-modal');renderConfig();
   // refresh broker filter
   const sel=document.getElementById('ord-fb');
@@ -3710,7 +3863,34 @@ const STAFF_SALARY = {
   'Beatriz': { base: 1200, commPct: 0.70, overridePct: 0.05, overrideFrom: 'TEAM' },
   'Yohana':  { base: 1500, commPct: 0.70, overridePct: 0.05, overrideFrom: 'ALL' },
   'Manuel':  { base: 1500, commPct: 0,    overridePct: 0,    overrideFrom: [] },
+  'Mariano Pava': { base: 0, commPct: 0, overridePct: 0.05, overrideFrom: 'ROOKIE_3MONTHS' },
 };
+
+// Rookie start time (ms): startDate if set, otherwise _ts. null = unknown.
+function rookieStartMs(b){
+  if(b && b.startDate){ const t = new Date(b.startDate+'T12:00:00').getTime(); if(!isNaN(t)) return t; }
+  return (b && b._ts) ? b._ts : null;
+}
+// Active Rookies still inside their first 90 days (unknown start = assume inside window)
+function activeRookies(){
+  const threeMonthsAgo = Date.now() - (90 * 24 * 60 * 60 * 1000);
+  return DB.brokers.filter(b => b.active && !b.deleted && b.tier === 'rookie' && (rookieStartMs(b) === null || rookieStartMs(b) >= threeMonthsAgo));
+}
+
+function checkRookieAlerts(){
+  const now = Date.now();
+  const alerts = DB.brokers.filter(b => b.active && !b.deleted && b.tier === 'rookie' && rookieStartMs(b) !== null).map(b => {
+    const days = Math.floor((now - rookieStartMs(b)) / (24*60*60*1000));
+    return {name: b.name, days: days};
+  }).filter(r => r.days >= 75);
+  if(!alerts.length) return;
+  const body = alerts.map(r => {
+    const msg = r.days >= 90 ? '⚠️ Ya cumplió 3 meses — Mariano ya no recibe 5%' : '📅 Cumple 3 meses en ' + (90-r.days) + ' días — considerar promoción a Jr. Broker';
+    return '<div style="padding:8px 12px;background:var(--a0);border-radius:8px;margin-bottom:6px;font-size:12px;"><strong>' + r.name + '</strong><br>' + msg + '</div>';
+  }).join('');
+  document.getElementById('rookie-alert-body').innerHTML = body;
+  document.getElementById('rookie-alert-modal').classList.add('show');
+}
 
 function populatePrivatePeriodSelects(){
   ['priv-period','fexp-period','vexp-period','pay-period'].forEach(id=>{
@@ -3860,7 +4040,8 @@ function supervisorTeamFee(sup, pOrders){
 function calcSupervisorOverride(b, periodKey){
   if(!b || STAFF_SALARY[b.name] || !isSupervisorBroker(b)) return 0;
   const pOrders = DB.orders.filter(o=>getPeriodKey(o.date)===periodKey);
-  return SUPERVISOR_OVERRIDE_PCT * supervisorTeamFee(b, pOrders);
+  const pct = (typeof b.supervisorOverridePct === 'number') ? b.supervisorOverridePct : SUPERVISOR_OVERRIDE_PCT;
+  return pct * supervisorTeamFee(b, pOrders);
 }
 function toggleSupervisor(idx, on){
   if(!IS_EDITOR) return;
@@ -3902,6 +4083,10 @@ function calcStaffPay(brokerName, periodKey){
     // Yohana: 5% of ALL active brokers except herself
     const ids = DB.brokers.filter(b=>b.active && !b.deleted && b.name!==brokerName).map(b=>b.id);
     overrideFee = pOrders.filter(o=>ids.includes(o.bId)).reduce((s,o)=>s+(Number(o.bfee)||0),0);
+  } else if(cfg.overrideFrom === 'ROOKIE_3MONTHS'){
+    // Mariano Pava: 5% of active Rookies within their first 90 days
+    const ids = activeRookies().map(b => b.id);
+    overrideFee = pOrders.filter(o => ids.includes(o.bId)).reduce((s,o) => s+(Number(o.bfee)||0), 0);
   } else if(cfg.overrideFrom === 'ALL_EXCEPT_MANUEL'){
     // Legacy: 5% of everyone except Manuel (and not herself)
     const exclude = ['Manuel', brokerName];
